@@ -1,0 +1,27 @@
+{
+  "name": "signalk-bluetti-plugin",
+  "version": "1.0.0",
+  "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE",
+  "main": "index.js",
+  "license": "MIT",
+  "keywords": [
+    "signalk-node-plugin",
+    "bluetti",
+    "battery",
+    "electrical",
+    "bluetooth",
+    "ble",
+    "marine"
+  ],
+  "signalk-plugin-enabled-by-default": false,
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-15",
+    "csv-parse": "^5.5.6"
+  },
+  "peerDependencies": {
+    "@signalk/server-api": "^2.0.0"
+  }
+}
