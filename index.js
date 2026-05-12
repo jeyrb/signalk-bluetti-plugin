@@ -1,19 +1,13 @@
 'use strict';
 
-const path = require('path');
-const Scanner = require('./lib/scanner');
-const BluettiDevice = require('./lib/device');
-const { loadCsv } = require('./lib/csv-loader');
-const { buildDelta } = require('./lib/path-mapper');
-
 const PLUGIN_ID = 'signalk-bluetti-plugin';
 
 module.exports = function (app) {
   const log = (msg) => app.debug(msg);
 
-  let scanner = null;
-  let activeDevices = [];   // BluettiDevice instances
-  let scanResultCache = []; // { address, name } from last scan
+  let scanner      = null;
+  let activeDevices = [];
+  let scanResultCache = [];
 
   // ── Plugin metadata ────────────────────────────────────────────────────
 
@@ -72,7 +66,7 @@ module.exports = function (app) {
             xorKey: {
               type: 'string',
               title: 'XOR encryption key (hex, optional)',
-              description: 'Leave blank for unencrypted devices. For encrypted models, enter the hex key from your CSV or Bluetti documentation.',
+              description: 'Leave blank for unencrypted devices. For encrypted models enter the hex key from your CSV.',
               default: '',
             },
           },
@@ -82,15 +76,13 @@ module.exports = function (app) {
     },
   };
 
-  // ── uiSchema — hints for the SignalK admin UI ──────────────────────────
-
   plugin.uiSchema = {
     devices: {
       items: {
-        address:  { 'ui:placeholder': 'aa:bb:cc:dd:ee:ff' },
-        name:     { 'ui:placeholder': 'house' },
-        csvPath:  { 'ui:placeholder': '/home/pi/bluetti-registers.csv' },
-        xorKey:   { 'ui:placeholder': 'Leave blank if not encrypted' },
+        address: { 'ui:placeholder': 'aa:bb:cc:dd:ee:ff' },
+        name:    { 'ui:placeholder': 'house' },
+        csvPath: { 'ui:placeholder': '/home/user/bluetti-registers.csv' },
+        xorKey:  { 'ui:placeholder': 'Leave blank if not encrypted' },
       },
     },
   };
@@ -98,12 +90,24 @@ module.exports = function (app) {
   // ── Start ──────────────────────────────────────────────────────────────
 
   plugin.start = function (options) {
+    // Defer all third-party requires to here so a missing dep shows as a
+    // plugin status error rather than silently removing the plugin from the list.
+    let Scanner, BluettiDevice, loadCsv, buildDelta;
+    try {
+      Scanner       = require('./lib/scanner');
+      BluettiDevice = require('./lib/device');
+      ({ loadCsv }    = require('./lib/csv-loader'));
+      ({ buildDelta } = require('./lib/path-mapper'));
+    } catch (err) {
+      app.setPluginError(`Dependency load failed: ${err.message}. Run: npm install inside the plugin directory.`);
+      return;
+    }
+
     scanner = new Scanner(log);
 
-    // Relay scan discoveries to plugin status so the admin UI shows them.
     scanner.on('discovered', ({ address, name }) => {
       scanResultCache.push({ address, name });
-      app.setPluginStatus(`Discovered: ${name} [${address}]. Configure in plugin settings.`);
+      app.setPluginStatus(`Discovered: ${name} [${address}] — copy address into plugin config`);
     });
 
     scanner.on('scanComplete', (found) => {
@@ -117,49 +121,48 @@ module.exports = function (app) {
 
     const devices = (options.devices || []).filter(d => d.enabled !== false);
 
-    if (devices.length === 0 && options.scanOnStart !== false) {
-      app.setPluginStatus('No devices configured — scanning for Bluetti devices …');
-      scanner.startScan(15000);
+    if (devices.length === 0) {
+      if (options.scanOnStart !== false) {
+        app.setPluginStatus('No devices configured — scanning for Bluetti devices …');
+        scanner.startScan(15000);
+      } else {
+        app.setPluginStatus('No devices configured. Add a device in plugin settings.');
+      }
       return;
     }
 
     if (options.scanOnStart !== false) {
-      // Scan in background while also starting configured devices
       scanner.startScan(15000);
     }
 
     for (const cfg of devices) {
-      startDevice(cfg);
+      startDevice(cfg, { Scanner, BluettiDevice, loadCsv, buildDelta });
     }
 
-    if (devices.length > 0) {
-      app.setPluginStatus(`Connecting to ${devices.length} device(s) …`);
-    }
+    app.setPluginStatus(`Connecting to ${devices.length} device(s) …`);
   };
 
-  function startDevice(cfg) {
+  function startDevice(cfg, { BluettiDevice, loadCsv, buildDelta }) {
     const { address, name, csvPath, pollIntervalSeconds = 10, xorKey = '' } = cfg;
 
-    // Validate address
-    if (!address || !name) {
-      log(`Skipping device with missing address or name`);
+    if (!address || !name || !csvPath) {
+      log(`Skipping device — missing address, name, or csvPath`);
       return;
     }
 
-    // Load register map
     let fields;
     try {
       fields = loadCsv(csvPath);
       log(`[${name}] Loaded ${fields.length} registers from ${csvPath}`);
     } catch (err) {
-      app.setPluginError(`[${name}] Failed to load CSV: ${err.message}`);
+      app.setPluginError(`[${name}] Failed to load CSV "${csvPath}": ${err.message}`);
       return;
     }
 
-    // Get peripheral — either from scan cache or trigger a fresh connect via noble
-    const peripheral = scanner.getPeripheral(address) || createPeripheral(address);
+    // noble peripheral lookup — must have scanned first or use internal map
+    const peripheral = getPeripheral(address);
     if (!peripheral) {
-      app.setPluginError(`[${name}] No BLE peripheral found for ${address}. Try enabling scanOnStart.`);
+      app.setPluginError(`[${name}] No BLE peripheral for ${address}. Enable "Scan on start" and restart.`);
       return;
     }
 
@@ -182,25 +185,25 @@ module.exports = function (app) {
       if (delta) app.handleMessage(PLUGIN_ID, delta);
     });
 
-    device.on('error', (err) => {
-      log(`[${name}] Error: ${err.message}`);
-    });
-
     device.start();
     activeDevices.push(device);
   }
 
-  // noble doesn't expose a simple "connect by address without scanning" API —
-  // on Linux we must scan first to get a peripheral object. This placeholder
-  // handles the case where the user configures an address before scanning.
-  function createPeripheral(address) {
-    // noble stores discovered peripherals internally; attempt to retrieve via internal map
-    const noble = (() => { try { return require('@abandonware/noble'); } catch (_) { return null; } })();
-    if (!noble) return null;
-
-    // noble._peripherals is an internal map keyed by id (= address on Linux)
-    const key = address.toLowerCase().replace(/:/g, '');
-    return (noble._peripherals && (noble._peripherals[address] || noble._peripherals[key])) || null;
+  function getPeripheral(address) {
+    // Try the scanner's cache first (populated by startScan)
+    if (scanner) {
+      const p = scanner.getPeripheral(address);
+      if (p) return p;
+    }
+    // Fallback: noble's internal peripheral map (populated by any prior scan)
+    try {
+      const noble = require('@abandonware/noble');
+      if (noble._peripherals) {
+        const key = address.toLowerCase().replace(/:/g, '');
+        return noble._peripherals[address] || noble._peripherals[key] || null;
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ── Stop ───────────────────────────────────────────────────────────────
