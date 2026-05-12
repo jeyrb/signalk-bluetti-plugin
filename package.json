@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE",
   "main": "index.js",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "signalk-node-plugin",
     "bluetti",
