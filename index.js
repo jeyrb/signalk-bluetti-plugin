@@ -1,13 +1,30 @@
 'use strict';
 
-const PLUGIN_ID = 'signalk-bluetti-plugin';
+const path = require('path');
+const fs   = require('fs');
+
+const PLUGIN_ID     = 'signalk-bluetti-plugin';
+const REGISTERS_DIR = path.join(__dirname, 'registers');
+
+function builtinModelNames() {
+  try {
+    return fs.readdirSync(REGISTERS_DIR)
+      .filter(f => f.endsWith('.csv'))
+      .map(f => f.replace(/\.csv$/, ''))
+      .sort();
+  } catch (_) {
+    return [];
+  }
+}
 
 module.exports = function (app) {
   const log = (msg) => app.debug(msg);
 
-  let scanner      = null;
+  let scanner       = null;
   let activeDevices = [];
   let scanResultCache = [];
+
+  const builtins = builtinModelNames();
 
   // ── Plugin metadata ────────────────────────────────────────────────────
 
@@ -35,7 +52,7 @@ module.exports = function (app) {
         description: 'One entry per Bluetti device you want to monitor.',
         items: {
           type: 'object',
-          required: ['address', 'name', 'csvPath'],
+          required: ['address', 'name'],
           properties: {
             enabled: {
               type: 'boolean',
@@ -52,22 +69,30 @@ module.exports = function (app) {
               title: 'Device name (used in SignalK path)',
               description: 'e.g. "house" → electrical.batteries.house.voltage',
             },
+            builtinModel: {
+              type: 'string',
+              title: 'Built-in register map',
+              description: 'Select a bundled register map for your device model, or "custom" to supply your own CSV path below.',
+              enum: ['custom', ...builtins],
+              default: builtins.length > 0 ? builtins[0] : 'custom',
+            },
             csvPath: {
               type: 'string',
-              title: 'Register map CSV path',
-              description: 'Absolute path to the Bluetti register definition CSV file.',
+              title: 'Custom register map CSV path',
+              description: 'Absolute path to a register definition CSV. Only used when "custom" is selected above.',
+              default: '',
+            },
+            encryptionCsvPath: {
+              type: 'string',
+              title: 'Bluetti encryption CSV path (optional)',
+              description: 'Path to the encrypted CSV file provided by Bluetti for your device. Leave blank for unencrypted devices.',
+              default: '',
             },
             pollIntervalSeconds: {
               type: 'number',
               title: 'Poll interval (seconds)',
               default: 10,
               minimum: 2,
-            },
-            xorKey: {
-              type: 'string',
-              title: 'XOR encryption key (hex, optional)',
-              description: 'Leave blank for unencrypted devices. For encrypted models enter the hex key from your CSV.',
-              default: '',
             },
           },
         },
@@ -79,10 +104,10 @@ module.exports = function (app) {
   plugin.uiSchema = {
     devices: {
       items: {
-        address: { 'ui:placeholder': 'aa:bb:cc:dd:ee:ff' },
-        name:    { 'ui:placeholder': 'house' },
-        csvPath: { 'ui:placeholder': '/home/user/bluetti-registers.csv' },
-        xorKey:  { 'ui:placeholder': 'Leave blank if not encrypted' },
+        address:           { 'ui:placeholder': 'aa:bb:cc:dd:ee:ff' },
+        name:              { 'ui:placeholder': 'house' },
+        csvPath:           { 'ui:placeholder': '/home/pi/my-device-registers.csv' },
+        encryptionCsvPath: { 'ui:placeholder': '/home/pi/19e1646709e0421b755fa9dda74.csv' },
       },
     },
   };
@@ -90,14 +115,13 @@ module.exports = function (app) {
   // ── Start ──────────────────────────────────────────────────────────────
 
   plugin.start = function (options) {
-    // Defer all third-party requires to here so a missing dep shows as a
-    // plugin status error rather than silently removing the plugin from the list.
-    let Scanner, BluettiDevice, loadCsv, buildDelta;
+    let Scanner, BluettiDevice, loadCsv, buildDelta, readEncryptionKey;
     try {
-      Scanner       = require('./lib/scanner');
-      BluettiDevice = require('./lib/device');
-      ({ loadCsv }    = require('./lib/csv-loader'));
-      ({ buildDelta } = require('./lib/path-mapper'));
+      Scanner              = require('./lib/scanner');
+      BluettiDevice        = require('./lib/device');
+      ({ loadCsv }         = require('./lib/csv-loader'));
+      ({ buildDelta }      = require('./lib/path-mapper'));
+      ({ readEncryptionKey } = require('./lib/encryption'));
     } catch (err) {
       app.setPluginError(`Dependency load failed: ${err.message}. Run: npm install inside the plugin directory.`);
       return;
@@ -136,30 +160,57 @@ module.exports = function (app) {
     }
 
     for (const cfg of devices) {
-      startDevice(cfg, { Scanner, BluettiDevice, loadCsv, buildDelta });
+      startDevice(cfg, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey });
     }
 
     app.setPluginStatus(`Connecting to ${devices.length} device(s) …`);
   };
 
-  function startDevice(cfg, { BluettiDevice, loadCsv, buildDelta }) {
-    const { address, name, csvPath, pollIntervalSeconds = 10, xorKey = '' } = cfg;
+  function resolveRegisterMapPath(cfg) {
+    const { builtinModel, csvPath } = cfg;
+    if (!builtinModel || builtinModel === 'custom') {
+      if (!csvPath) throw new Error('No register map: select a built-in model or provide a custom CSV path');
+      return csvPath;
+    }
+    return path.join(REGISTERS_DIR, `${builtinModel}.csv`);
+  }
 
-    if (!address || !name || !csvPath) {
-      log(`Skipping device — missing address, name, or csvPath`);
+  function startDevice(cfg, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
+    const { address, name, encryptionCsvPath = '', pollIntervalSeconds = 10 } = cfg;
+
+    if (!address || !name) {
+      log('Skipping device — missing address or name');
+      return;
+    }
+
+    let registerPath;
+    try {
+      registerPath = resolveRegisterMapPath(cfg);
+    } catch (err) {
+      app.setPluginError(`[${name}] ${err.message}`);
       return;
     }
 
     let fields;
     try {
-      fields = loadCsv(csvPath);
-      log(`[${name}] Loaded ${fields.length} registers from ${csvPath}`);
+      fields = loadCsv(registerPath);
+      log(`[${name}] Loaded ${fields.length} registers from ${registerPath}`);
     } catch (err) {
-      app.setPluginError(`[${name}] Failed to load CSV "${csvPath}": ${err.message}`);
+      app.setPluginError(`[${name}] Failed to load register map "${registerPath}": ${err.message}`);
       return;
     }
 
-    // noble peripheral lookup — must have scanned first or use internal map
+    let xorKey = null;
+    if (encryptionCsvPath) {
+      try {
+        xorKey = readEncryptionKey(encryptionCsvPath);
+        log(`[${name}] Loaded encryption key from ${encryptionCsvPath}`);
+      } catch (err) {
+        app.setPluginError(`[${name}] Failed to read encryption key: ${err.message}`);
+        return;
+      }
+    }
+
     const peripheral = getPeripheral(address);
     if (!peripheral) {
       app.setPluginError(`[${name}] No BLE peripheral for ${address}. Enable "Scan on start" and restart.`);
@@ -172,7 +223,7 @@ module.exports = function (app) {
       peripheral,
       fields,
       pollIntervalMs: pollIntervalSeconds * 1000,
-      xorKey: xorKey || null,
+      xorKey,
       log,
     });
 
@@ -190,12 +241,10 @@ module.exports = function (app) {
   }
 
   function getPeripheral(address) {
-    // Try the scanner's cache first (populated by startScan)
     if (scanner) {
       const p = scanner.getPeripheral(address);
       if (p) return p;
     }
-    // Fallback: noble's internal peripheral map (populated by any prior scan)
     try {
       const noble = require('@abandonware/noble');
       if (noble._peripherals) {

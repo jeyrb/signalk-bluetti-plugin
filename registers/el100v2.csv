@@ -1,0 +1,11 @@
+# Bluetti Elite 100 V2 (EL100V2) register map
+# Source: bluetti_bt_lib field definitions — partial, expand as more registers are confirmed.
+#
+# If power values read double the expected value, change register_count from 1 to 2 and data_type to uint32.
+#
+field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path
+dc_output_power,140,1,uint16,1,0,W,electrical.dc.{name}.power
+ac_output_power,142,1,uint16,1,0,W,electrical.inverters.{name}.ac.power
+dc_input_power,144,1,uint16,1,0,W,electrical.solar.{name}.panelPower
+ac_input_power,146,1,uint16,1,0,W,electrical.chargers.{name}.input.power
+ac_input_voltage,1314,1,uint16,0.1,0,V,electrical.chargers.{name}.input.voltage
