@@ -16,6 +16,9 @@
     "ble",
     "marine"
   ],
+  "engines": {
+    "signalk-server": "*"
+  },
   "signalk-plugin-enabled-by-default": false,
   "scripts": {
     "start": "node index.js"
