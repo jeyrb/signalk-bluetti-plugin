@@ -129,23 +129,17 @@ module.exports = function (app) {
 
     scanner = new Scanner(log);
 
-    scanner.on('discovered', ({ address, name }) => {
-      scanResultCache.push({ address, name });
-      app.setPluginStatus(`Discovered: ${name} [${address}] — copy address into plugin config`);
-    });
-
-    scanner.on('scanComplete', (found) => {
-      if (found.length === 0) {
-        app.setPluginStatus('Scan complete — no Bluetti devices found nearby.');
-      } else {
-        const list = found.map(d => `${d.name} [${d.address}]`).join(', ');
-        app.setPluginStatus(`Scan complete. Found: ${list}`);
-      }
-    });
-
     const devices = (options.devices || []).filter(d => d.enabled !== false);
 
     if (devices.length === 0) {
+      // Discovery-only mode: log anything Bluetti-shaped that appears
+      scanner.on('discovered', ({ address, name }) => {
+        scanResultCache.push({ address, name });
+        app.setPluginStatus(`Discovered: ${name} [${address}] — copy address into plugin config`);
+      });
+      scanner.on('scanComplete', (found) => {
+        if (found.length === 0) app.setPluginStatus('Scan complete — no Bluetti devices found nearby.');
+      });
       if (options.scanOnStart !== false) {
         app.setPluginStatus('No devices configured — scanning for Bluetti devices …');
         scanner.startScan(15000);
@@ -155,15 +149,35 @@ module.exports = function (app) {
       return;
     }
 
-    if (options.scanOnStart !== false) {
-      scanner.startScan(15000);
-    }
+    // Build address → cfg lookup (normalise to lowercase, no colons)
+    const normalise = (addr) => addr.toLowerCase().replace(/:/g, '');
+    const pending   = new Map(devices.map(cfg => [normalise(cfg.address), cfg]));
+    const deps      = { BluettiDevice, loadCsv, buildDelta, readEncryptionKey };
 
-    for (const cfg of devices) {
-      startDevice(cfg, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey });
-    }
+    scanner.on('discovered', ({ address, name, peripheral }) => {
+      scanResultCache.push({ address, name });
+      const cfg = pending.get(normalise(address));
+      if (cfg) {
+        pending.delete(normalise(address));
+        app.setPluginStatus(`Found ${name} [${address}] — connecting …`);
+        startDevice(cfg, peripheral, deps);
+      } else {
+        log(`Discovered unconfigured Bluetti device: ${name} [${address}]`);
+      }
+    });
 
-    app.setPluginStatus(`Connecting to ${devices.length} device(s) …`);
+    scanner.on('scanComplete', () => {
+      if (pending.size > 0) {
+        const missing = [...pending.values()].map(c => `${c.name} [${c.address}]`).join(', ');
+        app.setPluginStatus(`Waiting for device(s): ${missing} — rescanning …`);
+        setTimeout(() => {
+          if (pending.size > 0 && scanner) scanner.startScan(30000);
+        }, 5000);
+      }
+    });
+
+    app.setPluginStatus(`Scanning for ${devices.length} configured device(s) …`);
+    scanner.startScan(30000);
   };
 
   function resolveRegisterMapPath(cfg) {
@@ -175,13 +189,8 @@ module.exports = function (app) {
     return path.join(REGISTERS_DIR, `${builtinModel}.csv`);
   }
 
-  function startDevice(cfg, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
+  function startDevice(cfg, peripheral, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
     const { address, name, encryptionCsvPath = '', pollIntervalSeconds = 10 } = cfg;
-
-    if (!address || !name) {
-      log('Skipping device — missing address or name');
-      return;
-    }
 
     let registerPath;
     try {
@@ -211,12 +220,6 @@ module.exports = function (app) {
       }
     }
 
-    const peripheral = getPeripheral(address);
-    if (!peripheral) {
-      app.setPluginError(`[${name}] No BLE peripheral for ${address}. Enable "Scan on start" and restart.`);
-      return;
-    }
-
     const device = new BluettiDevice({
       address,
       name,
@@ -238,21 +241,6 @@ module.exports = function (app) {
 
     device.start();
     activeDevices.push(device);
-  }
-
-  function getPeripheral(address) {
-    if (scanner) {
-      const p = scanner.getPeripheral(address);
-      if (p) return p;
-    }
-    try {
-      const noble = require('@abandonware/noble');
-      if (noble._peripherals) {
-        const key = address.toLowerCase().replace(/:/g, '');
-        return noble._peripherals[address] || noble._peripherals[key] || null;
-      }
-    } catch (_) {}
-    return null;
   }
 
   // ── Stop ───────────────────────────────────────────────────────────────
