@@ -8,6 +8,7 @@
   "main": "index.js",
   "license": "Apache-2.0",
   "keywords": [
+    "signalk-node-server-plugin",
     "signalk-node-plugin",
     "bluetti",
     "battery",
