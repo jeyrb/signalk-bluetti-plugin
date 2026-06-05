@@ -214,16 +214,18 @@ module.exports = function (app) {
     scanner.startScan(30000);
   };
 
-  // Search $HOME for a file named <bleName>.csv (case-insensitive).
+  // Search $HOME for an encryption CSV for bleName.
+  // Priority: 1) <bleName>.csv  2) bluetti_device_licence.csv
   function findEncryptionCsvInHome(bleName) {
     const homeDir = os.homedir();
-    const target  = `${bleName.toLowerCase()}.csv`;
     try {
-      const match = fs.readdirSync(homeDir).find(f => f.toLowerCase() === target);
-      return match ? path.join(homeDir, match) : null;
-    } catch (_) {
-      return null;
-    }
+      const files = fs.readdirSync(homeDir);
+      const specific = files.find(f => f.toLowerCase() === `${bleName.toLowerCase()}.csv`);
+      if (specific) return path.join(homeDir, specific);
+      const generic = files.find(f => f.toLowerCase() === 'bluetti_device_licence.csv');
+      if (generic) return path.join(homeDir, generic);
+    } catch (_) {}
+    return null;
   }
 
   function validateEncryptionCsvPath(csvPath, deviceName) {
