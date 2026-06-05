@@ -1,10 +1,10 @@
 {
-  "name": "signalk-bluetti-plugin",
-  "version": "1.0.0",
+  "name": "@rhizomatics/signalk-bluetti-plugin",
+  "version": "1.0.1-alpha",
   "signalk": {
     "displayName": "Bluetti Monitoring"
   },
-  "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE",
+  "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE. ",
   "main": "index.js",
   "license": "Apache-2.0",
   "keywords": [

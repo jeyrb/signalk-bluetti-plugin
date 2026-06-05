@@ -1,10 +1,30 @@
 'use strict';
 
+const os   = require('os');
 const path = require('path');
 const fs   = require('fs');
 
 const PLUGIN_ID     = 'signalk-bluetti-plugin';
 const REGISTERS_DIR = path.join(__dirname, 'registers');
+
+// Bluetti device BLE name prefixes (mirrors scanner.js).
+const BLUETTI_PREFIXES = ['BT-TH-', 'BLUETTI', 'AC', 'EP', 'EB', 'EL'];
+
+// Search $HOME for exactly one CSV whose stem looks like a Bluetti device ID.
+// Returns the full path if exactly one match, empty string otherwise.
+function findBluettiEncryptionCsvInHome() {
+  try {
+    const homeDir = os.homedir();
+    const matches = fs.readdirSync(homeDir).filter(f => {
+      if (!f.toLowerCase().endsWith('.csv')) return false;
+      const stem = f.slice(0, -4).toUpperCase();
+      return BLUETTI_PREFIXES.some(p => stem.startsWith(p));
+    });
+    return matches.length === 1 ? path.join(os.homedir(), matches[0]) : '';
+  } catch (_) {
+    return '';
+  }
+}
 
 function builtinModelNames() {
   try {
@@ -86,7 +106,7 @@ module.exports = function (app) {
               type: 'string',
               title: 'Bluetti encryption CSV path (optional)',
               description: 'Path to the encrypted CSV file provided by Bluetti for your device. Leave blank for unencrypted devices.',
-              default: '',
+              default: findBluettiEncryptionCsvInHome(),
             },
             pollIntervalSeconds: {
               type: 'number',
@@ -160,7 +180,7 @@ module.exports = function (app) {
       if (cfg) {
         pending.delete(normalise(address));
         app.setPluginStatus(`Found ${name} [${address}] — connecting …`);
-        startDevice(cfg, peripheral, deps);
+        startDevice(cfg, peripheral, name, deps);
       } else {
         log(`Discovered unconfigured Bluetti device: ${name} [${address}]`);
       }
@@ -180,6 +200,18 @@ module.exports = function (app) {
     scanner.startScan(30000);
   };
 
+  // Search $HOME for a file named <bleName>.csv (case-insensitive).
+  function findEncryptionCsvInHome(bleName) {
+    const homeDir = os.homedir();
+    const target  = `${bleName.toLowerCase()}.csv`;
+    try {
+      const match = fs.readdirSync(homeDir).find(f => f.toLowerCase() === target);
+      return match ? path.join(homeDir, match) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function resolveRegisterMapPath(cfg) {
     const { builtinModel, csvPath } = cfg;
     if (!builtinModel || builtinModel === 'custom') {
@@ -189,7 +221,7 @@ module.exports = function (app) {
     return path.join(REGISTERS_DIR, `${builtinModel}.csv`);
   }
 
-  function startDevice(cfg, peripheral, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
+  function startDevice(cfg, peripheral, bleName, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
     const { address, name, encryptionCsvPath = '', pollIntervalSeconds = 10 } = cfg;
 
     let registerPath;
@@ -209,11 +241,20 @@ module.exports = function (app) {
       return;
     }
 
+    let effectiveEncryptionPath = encryptionCsvPath;
+    if (!effectiveEncryptionPath && bleName) {
+      const autoPath = findEncryptionCsvInHome(bleName);
+      if (autoPath) {
+        effectiveEncryptionPath = autoPath;
+        log(`[${name}] Auto-detected encryption CSV for ${bleName}: ${autoPath}`);
+      }
+    }
+
     let xorKey = null;
-    if (encryptionCsvPath) {
+    if (effectiveEncryptionPath) {
       try {
-        xorKey = readEncryptionKey(encryptionCsvPath);
-        log(`[${name}] Loaded encryption key from ${encryptionCsvPath}`);
+        xorKey = readEncryptionKey(effectiveEncryptionPath);
+        log(`[${name}] Loaded encryption key from ${effectiveEncryptionPath}`);
       } catch (err) {
         app.setPluginError(`[${name}] Failed to read encryption key: ${err.message}`);
         return;
