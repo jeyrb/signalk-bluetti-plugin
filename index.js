@@ -40,8 +40,8 @@ function builtinModelNames() {
 module.exports = function (app) {
   const log = (msg) => app.debug(msg);
 
-  let scanner       = null;
-  let activeDevices = [];
+  let scanner         = null;
+  let activeDevices   = [];
   let scanResultCache = [];
 
   const builtins = builtinModelNames();
@@ -185,17 +185,16 @@ module.exports = function (app) {
     const pending   = new Map(devices.map(cfg => [normalise(cfg.address), cfg]));
     const deps      = { BluettiDevice, loadCsv, buildDelta, readEncryptionKey };
 
-    scanner.on('discovered', ({ address, name, peripheral }) => {
+    scanner.on('discovered', ({ address, name, device: bleDevice }) => {
       scanResultCache.push({ address, name });
       const cfg = pending.get(normalise(address));
       if (cfg) {
         pending.delete(normalise(address));
         app.setPluginStatus(`Found ${name} [${address}] — connecting …`);
-        // Noble cannot scan and connect simultaneously — stop scan first.
-        // A short delay lets the BlueZ adapter finish scanning before we connect.
-        // The scanComplete handler will restart scanning for any remaining pending devices.
+        // Stop our discovery session before connecting (keeps the poll loop quiet).
+        // BlueZ handles scan+connect coexistence at the adapter level.
         scanner.stopScan();
-        setTimeout(() => startDevice(cfg, peripheral, name, deps), 500);
+        startDevice(cfg, bleDevice, name, deps);
       } else {
         log(`Discovered unconfigured Bluetti device: ${name} [${address}]`);
       }
@@ -257,7 +256,7 @@ module.exports = function (app) {
     return path.join(REGISTERS_DIR, `${builtinModel}.csv`);
   }
 
-  function startDevice(cfg, peripheral, bleName, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
+  function startDevice(cfg, bleDevice, bleName, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
     const { address, name, encryptionCsvPath = '', pollIntervalSeconds = 10 } = cfg;
 
     let registerPath;
@@ -300,7 +299,7 @@ module.exports = function (app) {
     const device = new BluettiDevice({
       address,
       name,
-      peripheral,
+      device: bleDevice,
       fields,
       pollIntervalMs: pollIntervalSeconds * 1000,
       xorKey,

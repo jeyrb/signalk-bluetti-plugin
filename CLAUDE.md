@@ -36,9 +36,9 @@ Scanner (BLE discovery)
 
 - **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes.
 
-- **`lib/scanner.js`** — Wraps `@stoprocent/noble`. Emits `discovered` (per device) and `scanComplete` (after timeout). Noble cannot scan and connect simultaneously — `index.js` calls `scanner.stopScan()` before handing a peripheral to `BluettiDevice`.
+- **`lib/scanner.js`** — Wraps `@naugehyde/node-ble` (BlueZ D-Bus). Calls `adapter.startDiscovery()` then polls `adapter.devices()` every second, emitting `discovered` (per Bluetti device found) and `scanComplete` (after timeout). Uses `device: <node-ble Device>` in the discovered payload (not `peripheral`).
 
-- **`lib/device.js`** — Manages the BLE GATT connection for one device. On connect, subscribes to the notify characteristic (UUID `ff01` / fallback `ffe1`), then starts a polling loop. Each poll sends all register batches sequentially — the next request is sent only after the previous response is received. Reconnects with exponential backoff on disconnect.
+- **`lib/device.js`** — Manages the BLE GATT connection for one device via the `node-ble` Device object (D-Bus backed, persists across disconnects — no rescan needed on reconnect). On connect, calls `device.gatt()` → `getPrimaryService()` → `getCharacteristic()` → `startNotifications()`, then starts a polling loop. Each poll sends all register batches sequentially — the next request is sent only after the previous response is received. Reconnects with exponential backoff by calling `device.connect()` again on the same object.
 
 - **`lib/protocol.js`** — Modbus RTU over BLE: builds FC03 (read holding registers) requests, validates CRC16 on responses, handles frame reassembly across multiple BLE packets. `groupRegisters()` converts a flat list of register addresses into contiguous batches (max gap 10, max 50 registers/batch) to minimise round-trips.
 

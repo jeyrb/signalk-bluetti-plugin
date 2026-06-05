@@ -1,6 +1,6 @@
 {
   "name": "@rhizomatics/signalk-bluetti-plugin",
-  "version": "1.0.8-alpha",
+  "version": "1.1.0-alpha",
   "signalk": {
     "displayName": "Bluetti Monitoring"
   },
@@ -30,7 +30,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@stoprocent/noble": "^2.5.3",
+    "@naugehyde/node-ble": "^1.13.5",
     "csv-parse": "^5.5.6"
   }
 }
