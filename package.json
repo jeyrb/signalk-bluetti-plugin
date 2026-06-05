@@ -21,6 +21,11 @@
     "signalk-server": "*"
   },
   "signalk-plugin-enabled-by-default": false,
+  "files": [
+    "index.js",
+    "lib/",
+    "registers/"
+  ],
   "scripts": {
     "start": "node index.js"
   },
