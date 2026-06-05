@@ -192,9 +192,10 @@ module.exports = function (app) {
         pending.delete(normalise(address));
         app.setPluginStatus(`Found ${name} [${address}] — connecting …`);
         // Noble cannot scan and connect simultaneously — stop scan first.
+        // A short delay lets the BlueZ adapter finish scanning before we connect.
         // The scanComplete handler will restart scanning for any remaining pending devices.
         scanner.stopScan();
-        startDevice(cfg, peripheral, name, deps);
+        setTimeout(() => startDevice(cfg, peripheral, name, deps), 500);
       } else {
         log(`Discovered unconfigured Bluetti device: ${name} [${address}]`);
       }

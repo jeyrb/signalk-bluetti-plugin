@@ -1,6 +1,6 @@
 {
   "name": "@rhizomatics/signalk-bluetti-plugin",
-  "version": "1.0.7-alpha",
+  "version": "1.0.8-alpha",
   "signalk": {
     "displayName": "Bluetti Monitoring"
   },
