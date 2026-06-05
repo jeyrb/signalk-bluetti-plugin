@@ -169,6 +169,17 @@ module.exports = function (app) {
       return;
     }
 
+    // Validate any explicitly-configured encryption CSV paths up front.
+    for (const cfg of devices) {
+      if (cfg.encryptionCsvPath) {
+        const err = validateEncryptionCsvPath(cfg.encryptionCsvPath, cfg.name);
+        if (err) {
+          app.setPluginError(err);
+          return;
+        }
+      }
+    }
+
     // Build address → cfg lookup (normalise to lowercase, no colons)
     const normalise = (addr) => addr.toLowerCase().replace(/:/g, '');
     const pending   = new Map(devices.map(cfg => [normalise(cfg.address), cfg]));
@@ -180,6 +191,9 @@ module.exports = function (app) {
       if (cfg) {
         pending.delete(normalise(address));
         app.setPluginStatus(`Found ${name} [${address}] — connecting …`);
+        // Noble cannot scan and connect simultaneously — stop scan first.
+        // The scanComplete handler will restart scanning for any remaining pending devices.
+        scanner.stopScan();
         startDevice(cfg, peripheral, name, deps);
       } else {
         log(`Discovered unconfigured Bluetti device: ${name} [${address}]`);
@@ -210,6 +224,27 @@ module.exports = function (app) {
     } catch (_) {
       return null;
     }
+  }
+
+  function validateEncryptionCsvPath(csvPath, deviceName) {
+    try {
+      fs.accessSync(csvPath, fs.constants.R_OK);
+    } catch (_) {
+      return `[${deviceName}] Encryption CSV not found or not readable: ${csvPath}`;
+    }
+    let lines;
+    try {
+      lines = fs.readFileSync(csvPath, 'utf8').split('\n').map(l => l.trim()).filter(Boolean);
+    } catch (err) {
+      return `[${deviceName}] Could not read encryption CSV "${csvPath}": ${err.message}`;
+    }
+    if (lines[0] !== 'bluetti') {
+      return `[${deviceName}] Encryption CSV does not look like a Bluetti key file (expected first line "bluetti"): ${csvPath}`;
+    }
+    if (lines.length < 4) {
+      return `[${deviceName}] Encryption CSV is missing the key line (expected 4 lines): ${csvPath}`;
+    }
+    return null;
   }
 
   function resolveRegisterMapPath(cfg) {
