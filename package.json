@@ -18,6 +18,7 @@
     "marine"
   ],
   "engines": {
+    "node": ">=18.0.0",
     "signalk-server": "*"
   },
   "signalk-plugin-enabled-by-default": false,

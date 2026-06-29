@@ -126,8 +126,8 @@ module.exports = function (app) {
       items: {
         address:           { 'ui:placeholder': 'aa:bb:cc:dd:ee:ff' },
         name:              { 'ui:placeholder': 'house' },
-        csvPath:           { 'ui:placeholder': '/home/pi/my-device-registers.csv' },
-        encryptionCsvPath: { 'ui:placeholder': '/home/pi/19e1646709e0421b755fa9dda74.csv' },
+        csvPath:           { 'ui:placeholder': 'e.g. /path/to/my-device-registers.csv' },
+        encryptionCsvPath: { 'ui:placeholder': 'e.g. /path/to/19e1646709e0421b755fa9dda74.csv' },
       },
     },
   };
