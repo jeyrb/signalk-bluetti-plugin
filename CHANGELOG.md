@@ -4,6 +4,7 @@ All notable changes to this plugin are documented here. Format loosely follows [
 
 ## [Unreleased]
 - Add discovery timeout
+- Fix upstream EventEmitter leak in `@naugehyde/node-ble`
 
 ## [1.1.2-alpha]
 - Fix crash on scan completion
