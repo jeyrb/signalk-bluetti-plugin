@@ -2,9 +2,11 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.2.1]
+## [1.3.0]
 
 - Fix handling of node-ble 128-bit UUIDs
+- Fix encrypted reads for Elite v2 BLE
+  - Confirmed successful values read from an Elite 100 V2
 
 ## [1.2.0]
 

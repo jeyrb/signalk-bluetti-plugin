@@ -31,6 +31,10 @@ The requirements below are only to make SignalK work with Bluetooth Low Energy, 
 
 Once you have all of that, it may be worth also installing [signalk-victron-ble](https://github.com/stefanor/signalk-victron-ble), [signalk-ruuvitag-plugin](https://github.com/vokkim/signalk-ruuvitag-plugin) or [bt-sensors-plugin](https://github.com/naugehyde/bt-sensors-plugin-sk) to pull in data from other sensors and equipment.
 
+4. Bluetti Encryption Key
+
+If using a later model that needs encryption, email [service@bluettipower.com](mailto:service@bluettipower.com) to raise a support query for key. Official API site is at see https://github.com/bluetti-official/bluetti-bluetooth-lib. Key will be in the form of a CSV file, which be stored in your SignalK server, for example in a home directory, and referenced in the Bluetti Monitoring plugin configuration.
+
 ## Installation
 
 Look for **Bluetti Monitoring** in the **SignalK AppStore** on your
