@@ -30,16 +30,21 @@ Commands:
     --all                       Also show non-Bluetti BLE devices
     --timeout <seconds>          Scan duration (default: 15)
 
-  dump <mac>                   Connect to a device and print its raw GATT
-                                services/characteristics (low-level inspection)
-    --timeout <seconds>          Discovery timeout if not already known (default: 20)
+  dump [mac]                   Connect to a device and print its raw GATT
+                                services/characteristics, with flags and
+                                readable values (low-level inspection)
+                                If mac is omitted, scans and uses the first
+                                Bluetti device found.
+    --timeout <seconds>          Discovery/scan timeout if not already known (default: 20)
 
-  info <mac>                   Connect and decode live registers the same way
+  info [mac]                   Connect and decode live registers the same way
                                 the plugin does
+                                If mac is omitted, scans and uses the first
+                                Bluetti device found.
     --registers <model|path>     Built-in model (${builtins.join(", ") || "none bundled"}) or a CSV path (required)
     --encryption-key <path>      Path to the Bluetti-provided encryption CSV
                                   (only needed for legacy XOR-scrambled models)
-    --timeout <seconds>          Discovery timeout if not already known (default: 20)
+    --timeout <seconds>          Discovery/scan timeout if not already known (default: 20)
 
   help                         Show this help
 
@@ -47,7 +52,9 @@ Examples:
   bluetti-cli scan
   bluetti-cli scan --all --timeout 30
   bluetti-cli dump aa:bb:cc:dd:ee:ff
+  bluetti-cli dump
   bluetti-cli info aa:bb:cc:dd:ee:ff --registers ac200p
+  bluetti-cli info --registers ac200p
 `);
 }
 
@@ -183,7 +190,21 @@ async function printGattTree(bleDevice) {
       console.log(`Service ${uuid}`);
       const service = await gatt.getPrimaryService(uuid);
       const charUuids = await service.characteristics();
-      for (const cUuid of charUuids) console.log(`  Characteristic ${cUuid}`);
+      for (const cUuid of charUuids) {
+        const characteristic = await service.getCharacteristic(cUuid);
+        const flags = await characteristic.getFlags().catch(() => []);
+
+        let valueStr = "";
+        if (flags.includes("read")) {
+          try {
+            const value = await characteristic.readValue();
+            valueStr = ` = ${value.length ? value.toString("hex") : "(empty)"}`;
+          } catch (err) {
+            valueStr = ` = (read failed: ${err.message})`;
+          }
+        }
+        console.log(`  Characteristic ${cUuid} [${flags.join(", ") || "?"}]${valueStr}`);
+      }
     }
   } finally {
     if (!alreadyConnected) await bleDevice.disconnect().catch(() => {});
@@ -261,17 +282,45 @@ async function printRegisterValues(bleDevice, mac, args) {
   }
 }
 
+// Scans for the first Bluetti-matching device and resolves its address, or
+// null if none turned up before durationMs. Used to default `[mac]` CLI
+// arguments when the user doesn't already know the address.
+async function findFirstBluettiAddress(durationMs, log) {
+  const Scanner = require("./lib/scanner");
+  const scanner = new Scanner(log, { includeAll: false });
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      scanner.stopAll();
+      resolve(result);
+    };
+    scanner.once("discovered", ({ address, name }) => finish({ address, name }));
+    scanner.once("scanComplete", () => finish(null));
+    scanner.once("error", () => finish(null));
+    void scanner.startScan(durationMs);
+  });
+}
+
 async function withConnectedDevice(args, usageLine, body) {
-  const mac = args._[0];
+  let mac = args._[0];
+  const timeoutMs = (args.timeout ? parseFloat(args.timeout) : 20) * 1000;
+
   if (!mac) {
-    console.error(`Error: MAC address required. Usage: ${usageLine}`);
-    process.exitCode = 1;
-    return;
+    console.error(`No MAC address given — scanning for a Bluetti device (up to ${timeoutMs / 1000}s)…`);
+    const found = await findFirstBluettiAddress(timeoutMs, (msg) => console.error(`[scan] ${msg}`));
+    if (!found) {
+      console.error(`No Bluetti device found. Usage: ${usageLine}`);
+      process.exitCode = 1;
+      return;
+    }
+    mac = found.address;
+    console.error(`Found ${found.name || "(unnamed)"} [${mac}]`);
   }
 
   const { createBluetooth } = require("@naugehyde/node-ble");
   const bt = createBluetooth();
-  const timeoutMs = (args.timeout ? parseFloat(args.timeout) : 20) * 1000;
 
   try {
     const adapter = await bt.bluetooth.defaultAdapter();
@@ -292,16 +341,16 @@ async function withConnectedDevice(args, usageLine, body) {
 }
 
 async function cmdDump(args) {
-  await withConnectedDevice(args, "bluetti-cli dump <mac>", (bleDevice) => printGattTree(bleDevice));
+  await withConnectedDevice(args, "bluetti-cli dump [mac]", (bleDevice) => printGattTree(bleDevice));
 }
 
 async function cmdInfo(args) {
   if (!args.registers) {
-    console.error("Error: --registers <model|path> is required. Usage: bluetti-cli info <mac> --registers <model|path>");
+    console.error("Error: --registers <model|path> is required. Usage: bluetti-cli info [mac] --registers <model|path>");
     process.exitCode = 1;
     return;
   }
-  await withConnectedDevice(args, "bluetti-cli info <mac> --registers <model|path>", (bleDevice, mac) =>
+  await withConnectedDevice(args, "bluetti-cli info [mac] --registers <model|path>", (bleDevice, mac) =>
     printRegisterValues(bleDevice, mac, args),
   );
 }

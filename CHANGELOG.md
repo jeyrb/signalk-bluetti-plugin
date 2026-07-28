@@ -4,8 +4,11 @@ All notable changes to this plugin are documented here. Format loosely follows [
 
 ## [1.3.3]
 
-- Metadata changes only, including git repo transfer
+- Normalize and extend paths for SignalK
+- Metadata update for package, including git repo transfer
 - README and CHANGELOG now included in package
+- CLI commands now guess MAC address if one not provided
+- CSV files now can provide static defaults, e.g. for DC output voltage, where the unit itself does not expose this over BLE
 
 ## [1.3.2]
 

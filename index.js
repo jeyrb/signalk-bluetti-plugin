@@ -271,6 +271,7 @@ module.exports = function (app) {
 
   function startDevice(cfg, bleDevice, bleName, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
     const { address, name, encryptionCsvPath = "", pollIntervalSeconds = 10 } = cfg;
+    const registerCache = new Map(); // last-known value per field_name, across polls — see buildDelta
 
     let registerPath;
     try {
@@ -324,7 +325,7 @@ module.exports = function (app) {
     });
 
     device.on("registers", (registers) => {
-      const delta = buildDelta(registers, fields, name, PLUGIN_ID);
+      const delta = buildDelta(registers, fields, name, PLUGIN_ID, { cache: registerCache });
       if (delta) app.handleMessage(PLUGIN_ID, delta);
     });
 

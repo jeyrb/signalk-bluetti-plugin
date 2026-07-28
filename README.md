@@ -56,22 +56,24 @@ node cli.js scan --all              # show every BLE device, not just Bluetti-ma
 node cli.js scan --timeout 30       # scan duration in seconds (default: 15)
 ```
 
-### `dump <mac>`
+### `dump [mac]`
 
-Connect to a single device by MAC address and print low-level details: name, alias, RSSI, pairing state, manufacturer data, and its raw GATT services/characteristics. Useful for figuring out a new/unknown device's UUIDs before wiring up a register map.
+Connect to a single device by MAC address and print low-level details: name, alias, RSSI, pairing state, manufacturer data, and its raw GATT services/characteristics — including each characteristic's flags (read/write/notify/…) and, for readable ones, its current value as hex. Useful for figuring out a new/unknown device's UUIDs before wiring up a register map. If `mac` is omitted, scans and connects to the first Bluetti-matching device found.
 
 ```bash
 node cli.js dump aa:bb:cc:dd:ee:ff
+node cli.js dump                                   # scan and use the first Bluetti device found
 node cli.js dump aa:bb:cc:dd:ee:ff --timeout 30   # discovery timeout if device isn't already known to BlueZ (default: 20)
 ```
 
-### `info <mac>`
+### `info [mac]`
 
-Connect to a device and decode its live register values the same way the plugin itself does — same GATT UUIDs, same encryption handshake (including the AES/ECDH handshake used by "V2"-protocol models like the EL100V2), same register parsing. Requires `--registers`.
+Connect to a device and decode its live register values the same way the plugin itself does — same GATT UUIDs, same encryption handshake (including the AES/ECDH handshake used by "V2"-protocol models like the EL100V2), same register parsing. Requires `--registers`. If `mac` is omitted, scans and connects to the first Bluetti-matching device found.
 
 ```bash
 # Decode live registers using a bundled register map (see registers/*.csv for available models)
 node cli.js info aa:bb:cc:dd:ee:ff --registers ac200p
+node cli.js info --registers ac200p                # scan and use the first Bluetti device found
 
 # Or a custom CSV, plus an encryption key file for legacy models that XOR-scramble frames
 # (not needed for V2-protocol models — those are auto-detected and handshake automatically)

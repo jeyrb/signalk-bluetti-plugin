@@ -1,39 +1,47 @@
 # Bluetti register map example — based on AC200P / AC200MAX community reverse-engineering.
 # Replace with your device's actual CSV. Columns the plugin recognises:
 #
-#   field_name       — internal identifier (no spaces)
-#   register_address — Modbus holding register number (decimal)
+#   field_name       — a standard Bluetti register name (see lib/path-mapper.js
+#                       for the ones the code already maps to a SignalK path),
+#                       or any identifier you like if you're supplying signalk_path
+#   register_address — Modbus holding register number (decimal); leave blank
+#                       for a fixed constant_value row instead (e.g. model specs)
 #   register_count   — number of 16-bit registers this field spans (1 for uint16/int16, 2 for int32/float32)
 #   data_type        — uint16 | int16 | uint32 | int32 | float32 | bool
 #   scale            — multiply raw value by this to get physical value
 #   offset           — add after scale (usually 0)
 #   unit             — V | A | W | Wh | % | °C | Hz | min — drives SignalK unit conversion
-#   signalk_path     — full SignalK path; use {name} where the device name goes
+#   signalk_path     — override; only needed for a register the code doesn't
+#                       recognise by field_name. Use {name} where the device name goes
+#   constant_value   — fixed value for a non-register row (register_address blank)
 #
-field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path
+field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path,constant_value
 # ── Battery ────────────────────────────────────────────────────────────────
-battery_percent,100,1,uint16,1,0,%,electrical.batteries.{name}.capacity.stateOfCharge
-battery_voltage,101,1,uint16,0.1,0,V,electrical.batteries.{name}.voltage
-battery_current,102,1,int16,0.1,0,A,electrical.batteries.{name}.current
-battery_power,103,1,int16,1,0,W,electrical.batteries.{name}.power
-battery_temperature,104,1,uint16,0.1,0,°C,electrical.batteries.{name}.temperature
-total_capacity,105,1,uint16,1,0,Wh,electrical.batteries.{name}.capacity.nominal
-remaining_capacity,106,1,uint16,1,0,Wh,electrical.batteries.{name}.capacity.remaining
+battery_percent,100,1,uint16,1,0,%,,
+battery_voltage,101,1,uint16,0.1,0,V,,
+battery_current,102,1,int16,0.1,0,A,,
+battery_power,103,1,int16,1,0,W,,
+battery_temperature,104,1,uint16,0.1,0,°C,,
 # ── DC / Solar input ────────────────────────────────────────────────────────
-dc_input_power,107,1,uint16,1,0,W,electrical.solar.{name}.panelPower
-dc_input_voltage,108,1,uint16,0.1,0,V,electrical.solar.{name}.panelVoltage
-dc_input_current,109,1,uint16,0.1,0,A,electrical.solar.{name}.panelCurrent
+dc_input_power,107,1,uint16,1,0,W,,
+dc_input_voltage,108,1,uint16,0.1,0,V,,
+dc_input_current,109,1,uint16,0.1,0,A,,
 # ── AC output (inverter) ────────────────────────────────────────────────────
-ac_output_power,110,1,uint16,1,0,W,electrical.inverters.{name}.ac.power
-ac_output_voltage,111,1,uint16,0.1,0,V,electrical.inverters.{name}.ac.voltage
-ac_output_current,112,1,uint16,0.1,0,A,electrical.inverters.{name}.ac.current
-ac_output_frequency,113,1,uint16,0.1,0,Hz,electrical.inverters.{name}.ac.frequency
+ac_output_power,110,1,uint16,1,0,W,,
+ac_output_voltage,111,1,uint16,0.1,0,V,,
+ac_output_current,112,1,uint16,0.1,0,A,,
+ac_output_frequency,113,1,uint16,0.1,0,Hz,,
 # ── AC input (charger / mains) ──────────────────────────────────────────────
-ac_input_power,114,1,uint16,1,0,W,electrical.chargers.{name}.input.power
-ac_input_voltage,115,1,uint16,0.1,0,V,electrical.chargers.{name}.input.voltage
-ac_input_current,116,1,uint16,0.1,0,A,electrical.chargers.{name}.input.current
-ac_input_frequency,117,1,uint16,0.1,0,Hz,electrical.chargers.{name}.input.frequency
+ac_input_power,114,1,uint16,1,0,W,,
+ac_input_voltage,115,1,uint16,0.1,0,V,,
+ac_input_current,116,1,uint16,0.1,0,A,,
+ac_input_frequency,117,1,uint16,0.1,0,Hz,,
 # ── Internal temperature ────────────────────────────────────────────────────
-internal_temperature,118,1,uint16,0.1,0,°C,electrical.batteries.{name}.controllerTemperature
+internal_temperature,118,1,uint16,0.1,0,°C,,
 # ── Estimated time remaining ────────────────────────────────────────────────
-time_remaining_minutes,119,1,uint16,1,0,min,electrical.batteries.{name}.capacity.timeRemaining
+time_remaining_minutes,119,1,uint16,1,0,min,,
+# ── Fixed model facts ────────────────────────────────────────────────────────
+battery_chemistry,,,,,,,,LiFePO4
+total_capacity,,,,,,Wh,,2000
+battery_manufacturer_name,,,,,,,,Bluetti
+battery_manufacturer_model,,,,,,,,AC200P

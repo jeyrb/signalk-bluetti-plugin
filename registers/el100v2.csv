@@ -4,10 +4,24 @@
 # EL100V2-specific fields: 140, 142, 144, 146, 1314
 # Note: DEVICE_TYPE (110) and DEVICE_SN (116) are string/serial fields — omitted.
 #
-field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path
-battery_soc,102,1,uint16,1,0,%,electrical.batteries.{name}.capacity.stateOfCharge
-dc_output_power,140,1,uint16,1,0,W,electrical.dc.{name}.power
-ac_output_power,142,1,uint16,1,0,W,electrical.inverters.{name}.ac.power
-dc_input_power,144,1,uint16,1,0,W,electrical.solar.{name}.panelPower
-ac_input_power,146,1,uint16,1,0,W,electrical.chargers.{name}.input.power
-ac_input_voltage,1314,1,uint16,0.1,0,V,electrical.chargers.{name}.input.voltage
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). signalk_path is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. constant_value is for fixed, non-register facts about this model
+# (register_address left blank for those rows).
+#
+field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path,constant_value
+battery_soc,102,1,uint16,1,0,%,,
+dc_output_power,140,1,uint16,1,0,W,,
+ac_output_power,142,1,uint16,1,0,W,,
+dc_input_power,144,1,uint16,1,0,W,,
+ac_input_power,146,1,uint16,1,0,W,,
+ac_input_voltage,1314,1,uint16,0.1,0,V,,
+# ── Fixed model facts ────────────────────────────────────────────────────────
+battery_chemistry,,,,,,,,LiFePO4
+total_capacity,,,,,,Wh,,1024
+battery_manufacturer_name,,,,,,,,Bluetti
+battery_manufacturer_model,,,,,,,,Elite 100 V2
+# dc_output_power (140) only reports power, not current — this fixed nominal
+# voltage (12V accessory port) is what lib/path-mapper.js derives current from.
+dc_output_voltage,,,,,,V,,12
