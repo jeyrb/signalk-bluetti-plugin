@@ -2,9 +2,12 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [1.2.0]
 
+- Stop scanner going into continuous scan loop if configured device not found
 - Add discovery timeout
+- Added CLI to scan and inspect devices
+- Build tools added oxfmt and oxlint to improve cod quality
 - Fix upstream EventEmitter leak in `@naugehyde/node-ble`
 
 ## [1.1.2-alpha]

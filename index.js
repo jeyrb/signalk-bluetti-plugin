@@ -44,6 +44,7 @@ module.exports = function (app) {
   let scanner = null;
   let activeDevices = [];
   let scanResultCache = [];
+  let waitingStatusTimer = null;
 
   const builtins = builtinModelNames();
 
@@ -192,27 +193,32 @@ module.exports = function (app) {
       if (cfg) {
         pending.delete(normalise(address));
         app.setPluginStatus(`Found ${name} [${address}] — connecting …`);
-        // Stop our discovery session before connecting (keeps the poll loop quiet).
-        // BlueZ handles scan+connect coexistence at the adapter level.
-        scanner.stopScan();
         startDevice(cfg, bleDevice, name, deps);
+        if (pending.size === 0) {
+          clearInterval(waitingStatusTimer);
+          waitingStatusTimer = null;
+          // All configured devices found — release our discovery session.
+          // BlueZ handles scan+connect coexistence at the adapter level, so this
+          // doesn't affect the just-started connection.
+          scanner.stopScan();
+        }
       } else {
         log(`Discovered unconfigured Bluetti device: ${name} [${address}]`);
       }
     });
 
-    scanner.on("scanComplete", () => {
+    // Periodic status update only — does not touch the scan/discovery session,
+    // which is left running continuously (see startScan(null) below) so we don't
+    // repeatedly tear down and restart BlueZ discovery shared with other plugins.
+    waitingStatusTimer = setInterval(() => {
       if (pending.size > 0) {
         const missing = [...pending.values()].map((c) => `${c.name} [${c.address}]`).join(", ");
-        app.setPluginStatus(`Waiting for device(s): ${missing} — rescanning …`);
-        setTimeout(() => {
-          if (pending.size > 0 && scanner) scanner.startScan(30000);
-        }, 5000);
+        app.setPluginStatus(`Waiting for device(s): ${missing} …`);
       }
-    });
+    }, 30000);
 
     app.setPluginStatus(`Scanning for ${devices.length} configured device(s) …`);
-    void scanner.startScan(30000);
+    void scanner.startScan(null);
   };
 
   // Search $HOME for an encryption CSV for bleName.
@@ -331,6 +337,10 @@ module.exports = function (app) {
   plugin.stop = function () {
     activeDevices.forEach((d) => d.stop());
     activeDevices = [];
+    if (waitingStatusTimer) {
+      clearInterval(waitingStatusTimer);
+      waitingStatusTimer = null;
+    }
     if (scanner) {
       scanner.stopAll();
       scanner = null;
