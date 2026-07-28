@@ -2,6 +2,10 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.1]
+
+- Fix handling of node-ble 128-bit UUIDs
+
 ## [1.2.0]
 
 - Stop scanner going into continuous scan loop if configured device not found
