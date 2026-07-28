@@ -2,9 +2,10 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.3.3]
+## [1.4.0]
 
 - Normalize and extend paths for SignalK
+  - Elite 100 v2 now publishes 12 paths, the AC200P 22
 - Metadata update for package, including git repo transfer
 - README and CHANGELOG now included in package
 - CLI commands now guess MAC address if one not provided
