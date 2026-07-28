@@ -1,6 +1,15 @@
 # SignalK Bluetti Power Station Monitoring
 
-BLE based monitoring. ALPHA status
+[![npm version](https://img.shields.io/npm/v/@jeyrb/signalk-bluetti-plugin.svg)](https://www.npmjs.com/package/@jeyrb/signalk-bluetti-plugin)
+[![npm downloads](https://img.shields.io/npm/dm/@jeyrb/signalk-bluetti-plugin.svg)](https://www.npmjs.com/package/@jeyrb/signalk-bluetti-plugin)
+[![SignalK Plugin CI](https://github.com/jeyrb/signalk-bluetti-plugin/actions/workflows/signalk-ci.yml/badge.svg)](https://github.com/jeyrb/signalk-bluetti-plugin/actions/workflows/signalk-ci.yml)
+[![codecov](https://img.shields.io/codecov/c/github/jeyrb/signalk-bluetti-plugin)](https://codecov.io/gh/jeyrb/signalk-bluetti-plugin)
+[![code style: oxfmt](https://img.shields.io/badge/code_style-oxfmt-blue.svg)](https://github.com)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/jeyrb/signalk-bluetti-plugin/blob/main/LICENSE)
+
+A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. ALPHA status
+
+## Plugin
 
 ## CLI
 

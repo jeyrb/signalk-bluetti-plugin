@@ -1,38 +1,39 @@
-'use strict';
+"use strict";
 
-const os   = require('os');
-const path = require('path');
-const fs   = require('fs');
+const os = require("os");
+const path = require("path");
+const fs = require("fs");
 
-const PLUGIN_ID     = 'signalk-bluetti-plugin';
-const REGISTERS_DIR = path.join(__dirname, 'registers');
+const PLUGIN_ID = "signalk-bluetti-plugin";
+const REGISTERS_DIR = path.join(__dirname, "registers");
 
 // Bluetti device BLE name prefixes (mirrors scanner.js).
-const BLUETTI_PREFIXES = ['BT-TH-', 'BLUETTI', 'AC', 'EP', 'EB', 'EL'];
+const BLUETTI_PREFIXES = ["BT-TH-", "BLUETTI", "AC", "EP", "EB", "EL"];
 
 // Search $HOME for exactly one CSV whose stem looks like a Bluetti device ID.
 // Returns the full path if exactly one match, empty string otherwise.
 function findBluettiEncryptionCsvInHome() {
   try {
     const homeDir = os.homedir();
-    const matches = fs.readdirSync(homeDir).filter(f => {
-      if (!f.toLowerCase().endsWith('.csv')) return false;
+    const matches = fs.readdirSync(homeDir).filter((f) => {
+      if (!f.toLowerCase().endsWith(".csv")) return false;
       const stem = f.slice(0, -4).toUpperCase();
-      return BLUETTI_PREFIXES.some(p => stem.startsWith(p));
+      return BLUETTI_PREFIXES.some((p) => stem.startsWith(p));
     });
-    return matches.length === 1 ? path.join(os.homedir(), matches[0]) : '';
-  } catch (_) {
-    return '';
+    return matches.length === 1 ? path.join(os.homedir(), matches[0]) : "";
+  } catch {
+    return "";
   }
 }
 
 function builtinModelNames() {
   try {
-    return fs.readdirSync(REGISTERS_DIR)
-      .filter(f => f.endsWith('.csv'))
-      .map(f => f.replace(/\.csv$/, ''))
+    return fs
+      .readdirSync(REGISTERS_DIR)
+      .filter((f) => f.endsWith(".csv"))
+      .map((f) => f.replace(/\.csv$/, ""))
       .sort();
-  } catch (_) {
+  } catch {
     return [];
   }
 }
@@ -40,8 +41,8 @@ function builtinModelNames() {
 module.exports = function (app) {
   const log = (msg) => app.debug(msg);
 
-  let scanner         = null;
-  let activeDevices   = [];
+  let scanner = null;
+  let activeDevices = [];
   let scanResultCache = [];
 
   const builtins = builtinModelNames();
@@ -49,68 +50,68 @@ module.exports = function (app) {
   // ── Plugin metadata ────────────────────────────────────────────────────
 
   const plugin = {
-    id:          PLUGIN_ID,
-    name:        'Bluetti Power Station (BLE)',
-    description: 'Monitors Bluetti power devices via Bluetooth LE and publishes to electrical.* paths',
+    id: PLUGIN_ID,
+    name: "Bluetti Power Station (BLE)",
+    description: "Monitors Bluetti power devices via Bluetooth LE and publishes to electrical.* paths",
   };
 
   // ── Config schema ──────────────────────────────────────────────────────
 
   plugin.schema = {
-    type: 'object',
+    type: "object",
     required: [],
     properties: {
       scanOnStart: {
-        type: 'boolean',
-        title: 'Scan for new devices on plugin start',
-        description: 'Runs a 15-second BLE scan and logs discovered Bluetti devices. Useful for finding device addresses.',
+        type: "boolean",
+        title: "Scan for new devices on plugin start",
+        description: "Runs a 15-second BLE scan and logs discovered Bluetti devices. Useful for finding device addresses.",
         default: true,
       },
       devices: {
-        type: 'array',
-        title: 'Devices',
-        description: 'One entry per Bluetti device you want to monitor.',
+        type: "array",
+        title: "Devices",
+        description: "One entry per Bluetti device you want to monitor.",
         items: {
-          type: 'object',
-          required: ['address', 'name'],
+          type: "object",
+          required: ["address", "name"],
           properties: {
             enabled: {
-              type: 'boolean',
-              title: 'Enabled',
+              type: "boolean",
+              title: "Enabled",
               default: true,
             },
             address: {
-              type: 'string',
-              title: 'BLE MAC address',
-              description: 'e.g. aa:bb:cc:dd:ee:ff  — run a scan to find this',
+              type: "string",
+              title: "BLE MAC address",
+              description: "e.g. aa:bb:cc:dd:ee:ff  — run a scan to find this",
             },
             name: {
-              type: 'string',
-              title: 'Device name (used in SignalK path)',
+              type: "string",
+              title: "Device name (used in SignalK path)",
               description: 'e.g. "house" → electrical.batteries.house.voltage',
             },
             builtinModel: {
-              type: 'string',
-              title: 'Built-in register map',
+              type: "string",
+              title: "Built-in register map",
               description: 'Select a bundled register map for your device model, or "custom" to supply your own CSV path below.',
-              enum: ['custom', ...builtins],
-              default: builtins.length > 0 ? builtins[0] : 'custom',
+              enum: ["custom", ...builtins],
+              default: builtins.length > 0 ? builtins[0] : "custom",
             },
             csvPath: {
-              type: 'string',
-              title: 'Custom register map CSV path',
+              type: "string",
+              title: "Custom register map CSV path",
               description: 'Absolute path to a register definition CSV. Only used when "custom" is selected above.',
-              default: '',
+              default: "",
             },
             encryptionCsvPath: {
-              type: 'string',
-              title: 'Bluetti encryption CSV path (optional)',
-              description: 'Path to the encrypted CSV file provided by Bluetti for your device. Leave blank for unencrypted devices.',
+              type: "string",
+              title: "Bluetti encryption CSV path (optional)",
+              description: "Path to the encrypted CSV file provided by Bluetti for your device. Leave blank for unencrypted devices.",
               default: findBluettiEncryptionCsvInHome(),
             },
             pollIntervalSeconds: {
-              type: 'number',
-              title: 'Poll interval (seconds)',
+              type: "number",
+              title: "Poll interval (seconds)",
               default: 10,
               minimum: 2,
             },
@@ -124,10 +125,10 @@ module.exports = function (app) {
   plugin.uiSchema = {
     devices: {
       items: {
-        address:           { 'ui:placeholder': 'aa:bb:cc:dd:ee:ff' },
-        name:              { 'ui:placeholder': 'house' },
-        csvPath:           { 'ui:placeholder': 'e.g. /path/to/my-device-registers.csv' },
-        encryptionCsvPath: { 'ui:placeholder': 'e.g. /path/to/19e1646709e0421b755fa9dda74.csv' },
+        address: { "ui:placeholder": "aa:bb:cc:dd:ee:ff" },
+        name: { "ui:placeholder": "house" },
+        csvPath: { "ui:placeholder": "e.g. /path/to/my-device-registers.csv" },
+        encryptionCsvPath: { "ui:placeholder": "e.g. /path/to/19e1646709e0421b755fa9dda74.csv" },
       },
     },
   };
@@ -137,11 +138,11 @@ module.exports = function (app) {
   plugin.start = function (options) {
     let Scanner, BluettiDevice, loadCsv, buildDelta, readEncryptionKey;
     try {
-      Scanner              = require('./lib/scanner');
-      BluettiDevice        = require('./lib/device');
-      ({ loadCsv }         = require('./lib/csv-loader'));
-      ({ buildDelta }      = require('./lib/path-mapper'));
-      ({ readEncryptionKey } = require('./lib/encryption'));
+      Scanner = require("./lib/scanner");
+      BluettiDevice = require("./lib/device");
+      ({ loadCsv } = require("./lib/csv-loader"));
+      ({ buildDelta } = require("./lib/path-mapper"));
+      ({ readEncryptionKey } = require("./lib/encryption"));
     } catch (err) {
       app.setPluginError(`Dependency load failed: ${err.message}. Run: npm install inside the plugin directory.`);
       return;
@@ -149,22 +150,22 @@ module.exports = function (app) {
 
     scanner = new Scanner(log);
 
-    const devices = (options.devices || []).filter(d => d.enabled !== false);
+    const devices = (options.devices || []).filter((d) => d.enabled !== false);
 
     if (devices.length === 0) {
       // Discovery-only mode: log anything Bluetti-shaped that appears
-      scanner.on('discovered', ({ address, name }) => {
+      scanner.on("discovered", ({ address, name }) => {
         scanResultCache.push({ address, name });
         app.setPluginStatus(`Discovered: ${name} [${address}] — copy address into plugin config`);
       });
-      scanner.on('scanComplete', (found) => {
-        if (found.length === 0) app.setPluginStatus('Scan complete — no Bluetti devices found nearby.');
+      scanner.on("scanComplete", (found) => {
+        if (found.length === 0) app.setPluginStatus("Scan complete — no Bluetti devices found nearby.");
       });
       if (options.scanOnStart !== false) {
-        app.setPluginStatus('No devices configured — scanning for Bluetti devices …');
-        scanner.startScan(15000);
+        app.setPluginStatus("No devices configured — scanning for Bluetti devices …");
+        void scanner.startScan(15000);
       } else {
-        app.setPluginStatus('No devices configured. Add a device in plugin settings.');
+        app.setPluginStatus("No devices configured. Add a device in plugin settings.");
       }
       return;
     }
@@ -181,11 +182,11 @@ module.exports = function (app) {
     }
 
     // Build address → cfg lookup (normalise to lowercase, no colons)
-    const normalise = (addr) => addr.toLowerCase().replace(/:/g, '');
-    const pending   = new Map(devices.map(cfg => [normalise(cfg.address), cfg]));
-    const deps      = { BluettiDevice, loadCsv, buildDelta, readEncryptionKey };
+    const normalise = (addr) => addr.toLowerCase().replace(/:/g, "");
+    const pending = new Map(devices.map((cfg) => [normalise(cfg.address), cfg]));
+    const deps = { BluettiDevice, loadCsv, buildDelta, readEncryptionKey };
 
-    scanner.on('discovered', ({ address, name, device: bleDevice }) => {
+    scanner.on("discovered", ({ address, name, device: bleDevice }) => {
       scanResultCache.push({ address, name });
       const cfg = pending.get(normalise(address));
       if (cfg) {
@@ -200,9 +201,9 @@ module.exports = function (app) {
       }
     });
 
-    scanner.on('scanComplete', () => {
+    scanner.on("scanComplete", () => {
       if (pending.size > 0) {
-        const missing = [...pending.values()].map(c => `${c.name} [${c.address}]`).join(', ');
+        const missing = [...pending.values()].map((c) => `${c.name} [${c.address}]`).join(", ");
         app.setPluginStatus(`Waiting for device(s): ${missing} — rescanning …`);
         setTimeout(() => {
           if (pending.size > 0 && scanner) scanner.startScan(30000);
@@ -211,7 +212,7 @@ module.exports = function (app) {
     });
 
     app.setPluginStatus(`Scanning for ${devices.length} configured device(s) …`);
-    scanner.startScan(30000);
+    void scanner.startScan(30000);
   };
 
   // Search $HOME for an encryption CSV for bleName.
@@ -220,27 +221,31 @@ module.exports = function (app) {
     const homeDir = os.homedir();
     try {
       const files = fs.readdirSync(homeDir);
-      const specific = files.find(f => f.toLowerCase() === `${bleName.toLowerCase()}.csv`);
+      const specific = files.find((f) => f.toLowerCase() === `${bleName.toLowerCase()}.csv`);
       if (specific) return path.join(homeDir, specific);
-      const generic = files.find(f => f.toLowerCase() === 'bluetti_device_licence.csv');
+      const generic = files.find((f) => f.toLowerCase() === "bluetti_device_licence.csv");
       if (generic) return path.join(homeDir, generic);
-    } catch (_) {}
+    } catch {}
     return null;
   }
 
   function validateEncryptionCsvPath(csvPath, deviceName) {
     try {
       fs.accessSync(csvPath, fs.constants.R_OK);
-    } catch (_) {
+    } catch {
       return `[${deviceName}] Encryption CSV not found or not readable: ${csvPath}`;
     }
     let lines;
     try {
-      lines = fs.readFileSync(csvPath, 'utf8').split('\n').map(l => l.trim()).filter(Boolean);
+      lines = fs
+        .readFileSync(csvPath, "utf8")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
     } catch (err) {
       return `[${deviceName}] Could not read encryption CSV "${csvPath}": ${err.message}`;
     }
-    if (lines[0] !== 'bluetti') {
+    if (lines[0] !== "bluetti") {
       return `[${deviceName}] Encryption CSV does not look like a Bluetti key file (expected first line "bluetti"): ${csvPath}`;
     }
     if (lines.length < 4) {
@@ -251,15 +256,15 @@ module.exports = function (app) {
 
   function resolveRegisterMapPath(cfg) {
     const { builtinModel, csvPath } = cfg;
-    if (!builtinModel || builtinModel === 'custom') {
-      if (!csvPath) throw new Error('No register map: select a built-in model or provide a custom CSV path');
+    if (!builtinModel || builtinModel === "custom") {
+      if (!csvPath) throw new Error("No register map: select a built-in model or provide a custom CSV path");
       return csvPath;
     }
     return path.join(REGISTERS_DIR, `${builtinModel}.csv`);
   }
 
   function startDevice(cfg, bleDevice, bleName, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
-    const { address, name, encryptionCsvPath = '', pollIntervalSeconds = 10 } = cfg;
+    const { address, name, encryptionCsvPath = "", pollIntervalSeconds = 10 } = cfg;
 
     let registerPath;
     try {
@@ -308,11 +313,11 @@ module.exports = function (app) {
       log,
     });
 
-    device.on('connected', () => {
+    device.on("connected", () => {
       app.setPluginStatus(`Connected to ${name} [${address}]`);
     });
 
-    device.on('registers', (registers) => {
+    device.on("registers", (registers) => {
       const delta = buildDelta(registers, fields, name, PLUGIN_ID);
       if (delta) app.handleMessage(PLUGIN_ID, delta);
     });
@@ -324,7 +329,7 @@ module.exports = function (app) {
   // ── Stop ───────────────────────────────────────────────────────────────
 
   plugin.stop = function () {
-    activeDevices.forEach(d => d.stop());
+    activeDevices.forEach((d) => d.stop());
     activeDevices = [];
     if (scanner) {
       scanner.stopAll();

@@ -1,42 +1,53 @@
 {
   "name": "@rhizomatics/signalk-bluetti-plugin",
   "version": "1.2.0",
-  "signalk": {
-    "displayName": "Bluetti Monitoring"
-  },
   "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE. Alpha, use with caution.",
-  "main": "index.js",
+  "keywords": [
+    "battery",
+    "ble",
+    "bluetooth",
+    "bluetti",
+    "electrical",
+    "marine",
+    "signalk-node-plugin",
+    "signalk-node-server-plugin"
+  ],
+  "license": "Apache-2.0",
   "bin": {
     "bluetti-cli": "cli.js"
   },
-  "license": "Apache-2.0",
-  "keywords": [
-    "signalk-node-server-plugin",
-    "signalk-node-plugin",
-    "bluetti",
-    "battery",
-    "electrical",
-    "bluetooth",
-    "ble",
-    "marine"
-  ],
-  "engines": {
-    "node": ">=18.0.0",
-    "signalk-server": "*"
-  },
-  "signalk-plugin-enabled-by-default": false,
   "files": [
     "index.js",
     "cli.js",
     "lib/",
     "registers/"
   ],
+  "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "cli": "node cli.js"
+    "cli": "node cli.js",
+    "test": "node scripts/run-tests.js",
+    "coverage": "node scripts/run-tests.js --coverage",
+    "prepublishOnly": "npm run build",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@naugehyde/node-ble": "^1.13.5",
     "csv-parse": "^5.5.6"
-  }
+  },
+  "devDependencies": {
+    "oxfmt": "^0.61.0",
+    "oxlint": "^1.76.0",
+    "oxlint-tsgolint": "^7.0.2001"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "signalk-server": "*"
+  },
+  "signalk": {
+    "displayName": "Bluetti Monitoring"
+  },
+  "signalk-plugin-enabled-by-default": false
 }

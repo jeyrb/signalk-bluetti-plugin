@@ -12,6 +12,7 @@ node index.js        # run standalone (limited use — normally loaded by Signal
 There is no build step, no linter config, and no test suite. The plugin is loaded by the SignalK server from `index.js`.
 
 To exercise the plugin locally, install it into a running SignalK server:
+
 ```bash
 cd ~/.signalk/node_modules && ln -s /path/to/signalk-bluetti-plugin @rhizomatics/signalk-bluetti-plugin
 ```

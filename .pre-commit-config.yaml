@@ -1,0 +1,34 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+      - id: check-merge-conflict
+  - repo: https://github.com/oxc-project/mirrors-oxlint
+    rev: v1.76.0
+    hooks:
+      - id: oxlint
+        verbose: true
+        # `--no-error-on-unmatched-pattern`: pre-commit passes whichever staged files match its own
+        # `types_or: [ts, tsx, ...]` filter, but `.oxlintrc.json`'s `ignorePatterns` separately excludes
+        # `**/*.test.ts` - a commit touching *only* test files (e.g. a test-only fixup) then hands oxlint
+        # a file list it filters down to zero, which it treats as an error ("No files found to lint")
+        # rather than a no-op. This flag makes that case a clean pass instead of a spurious failure.
+        args: ["--node-plugin", "--no-error-on-unmatched-pattern"]
+  - repo: https://github.com/oxc-project/mirrors-oxfmt
+    rev: v0.60.0
+    hooks:
+      - id: oxfmt
+        verbose: false
+        # The hook's own default `types_or` is `[javascript, jsx, ts, tsx]`, so it silently skips
+        # markdown/json/yaml/etc - files `npm run fmt:check` (plain `oxfmt --check`, CI's format-check-command)
+        # still covers, since oxfmt formats those by default too. `types` (unset here) still defaults to
+        # `[file]`, so overriding just `types_or` to `[text]` is what actually lifts the JS/TS-only
+        # restriction and keeps pre-commit and CI checking the same set of files.
+        types_or: [text]
