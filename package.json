@@ -59,7 +59,7 @@
     "recommends": [
       "@rhizomatics/signalk-einklabel-plugin"
     ],
-    "screenshots":[
+    "screenshots": [
       "docs/assets/screenshots/bluetti_data.png"
     ]
   },
