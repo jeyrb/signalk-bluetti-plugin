@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@rhizomatics/signalk-bluetti-plugin.svg)](https://www.npmjs.com/package/@rhizomatics/signalk-bluetti-plugin)
 [![npm downloads](https://img.shields.io/npm/dm/@rhizomatics/signalk-bluetti-plugin.svg)](https://www.npmjs.com/package/@rhizomatics/signalk-bluetti-plugin)
 [![SignalK Plugin CI](https://github.com/jeyrb/signalk-bluetti-plugin/actions/workflows/signalk-ci.yml/badge.svg)](https://github.com/jeyrb/signalk-bluetti-plugin/actions/workflows/signalk-ci.yml)
-[![code style: oxfmt](https://img.shields.io/badge/code_style-oxfmt-blue.svg)]
+![code style: oxfmt](https://img.shields.io/badge/code_style-oxfmt-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/rhizomatics/signalk-bluetti-plugin/blob/main/LICENSE)
 
 A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. ALPHA status
