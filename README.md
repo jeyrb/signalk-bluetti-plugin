@@ -8,6 +8,8 @@
 
 A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. BETA status
 
+![Example Data](docs/assets/screenshots/bluetti_data.png)
+
 ## Pre-requisites
 
 The requirements below are only to make SignalK work with Bluetooth Low Energy, which is good thing to have anyway, since vendors like Victron, Switchbot, Ruuvi and others have BLE enabled hardware that's useful to have on a boat. Ignore if BLE already being used. [Direct BLE support](https://github.com/SignalK/signalk-server/issues/2411) in SignalK is being planned in 2026 and this plugin will support that when it comes.
