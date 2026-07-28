@@ -1,6 +1,6 @@
 {
   "name": "@rhizomatics/signalk-bluetti-plugin",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE. Beta, use with caution.",
   "keywords": [
     "battery",
@@ -12,7 +12,16 @@
     "signalk-node-plugin",
     "signalk-node-server-plugin"
   ],
-  "license": "Apache-2.0",
+  "homepage": "https://github.com/rhizomatics/signalk-bluetti-plugin.git",
+  "bugs": {
+    "url": "https://github.com/rhizomatics/signalk-bluetti-plugin/issues"
+  },
+  "license": "APACHE-2.0",
+  "author": "jey burrows",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhizomatics/signalk-bluetti-plugin.git"
+  },
   "bin": {
     "bluetti-cli": "cli.js"
   },
