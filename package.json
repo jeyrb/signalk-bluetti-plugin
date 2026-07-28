@@ -20,7 +20,9 @@
     "index.js",
     "cli.js",
     "lib/",
-    "registers/"
+    "registers/",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "main": "index.js",
   "scripts": {
