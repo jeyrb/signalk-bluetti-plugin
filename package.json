@@ -58,6 +58,9 @@
     "displayName": "Bluetti Monitoring",
     "recommends": [
       "@rhizomatics/signalk-einklabel-plugin"
+    ],
+    "screenshots": [
+      "docs/assets/screenshots/bluetti_data.png"
     ]
   },
   "signalk-plugin-enabled-by-default": false
