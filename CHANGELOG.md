@@ -2,6 +2,11 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.2]
+
+- Correct SignalK paths so state of charge shows as a percentage
+  - From `electrical.batteries.<id>.stateOfCharge` to `electrical.batteries.<id>.capacity.stateOfCharge`
+
 ## [1.3.1]
 
 - Back off if bluetooth daemon not available at startup

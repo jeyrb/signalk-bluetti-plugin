@@ -12,7 +12,7 @@
 #
 field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path
 # ── Battery ────────────────────────────────────────────────────────────────
-battery_percent,100,1,uint16,1,0,%,electrical.batteries.{name}.stateOfCharge
+battery_percent,100,1,uint16,1,0,%,electrical.batteries.{name}.capacity.stateOfCharge
 battery_voltage,101,1,uint16,0.1,0,V,electrical.batteries.{name}.voltage
 battery_current,102,1,int16,0.1,0,A,electrical.batteries.{name}.current
 battery_power,103,1,int16,1,0,W,electrical.batteries.{name}.power
