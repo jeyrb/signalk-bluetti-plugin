@@ -6,7 +6,7 @@
 ![code style: oxfmt](https://img.shields.io/badge/code_style-oxfmt-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/rhizomatics/signalk-bluetti-plugin/blob/main/LICENSE)
 
-A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. ALPHA status
+A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. BETA status
 
 ## Pre-requisites
 
