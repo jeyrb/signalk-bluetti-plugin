@@ -6,7 +6,7 @@
 ![code style: oxfmt](https://img.shields.io/badge/code_style-oxfmt-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/rhizomatics/signalk-bluetti-plugin/blob/main/LICENSE)
 
-A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. BETA status
+A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. BETA status (only knows about Elite 100V2 and AC200P, extensible to all BLE enabled stations).
 
 ![Example Data](docs/assets/screenshots/bluetti_data.png)
 
@@ -85,6 +85,23 @@ node cli.js info aa:bb:cc:dd:ee:ff --registers ac200p --timeout 30   # discovery
 ```
 
 ## FAQ
+
+### Capacity figures show in Joules, how do I make it useful?
+
+SignalK stores all data in SI units rather than any customary units used anywhere, for example temperatures are all held in Kelvin and unit preferences allow them to be converted in the display to C or F.
+
+Unfortunately the default sets of preset unit preferences don't include the `energy` category used for capacity and more unfortunately as of SignalK v2.30.0 there's no easy way to override individual paths.
+
+The fiddly way to do it should be as below (however there's a current [misconfiguration](https://github.com/SignalK/signalk-server/issues/2878) in the SignalK code which gets in the way):
+
+1. Download your preferred set of unit preferences from the [SignalK repo](https://github.com/SignalK/signalk-server/tree/ac368c548fba923db0acf8a314cbdc6552b2b8cf/unitpreferences/presets)
+2. Edit the downloaded file
+
+- Change the `targetUnit` of `energy` category to `Wh`
+- Change the `name` at the top of the file to reflect the change, for example `"Nautical (Metric, Wh capacity)"`
+
+3. Go to the _Unit Preferences_ section of the _Data_ menu in SignalK
+4. Use the _Upload_ button to upload your amended preferences preset and select it in the preset dropdown
 
 ### SignalK starts before the Bluetooth daemon — does the plugin need `bluetoothd` running at boot?
 
