@@ -30,12 +30,15 @@ Commands:
     --all                       Also show non-Bluetti BLE devices
     --timeout <seconds>          Scan duration (default: 15)
 
-  info <mac>                  Connect to a device and show details
-    --registers <model|path>     Decode live registers using a built-in model
-                                  (${builtins.join(", ") || "none bundled"}) or a CSV path
+  dump <mac>                   Connect to a device and print its raw GATT
+                                services/characteristics (low-level inspection)
+    --timeout <seconds>          Discovery timeout if not already known (default: 20)
+
+  info <mac>                   Connect and decode live registers the same way
+                                the plugin does
+    --registers <model|path>     Built-in model (${builtins.join(", ") || "none bundled"}) or a CSV path (required)
     --encryption-key <path>      Path to the Bluetti-provided encryption CSV
-                                  (only needed if --registers is used and the
-                                  device scrambles frames)
+                                  (only needed for legacy XOR-scrambled models)
     --timeout <seconds>          Discovery timeout if not already known (default: 20)
 
   help                         Show this help
@@ -43,7 +46,7 @@ Commands:
 Examples:
   bluetti-cli scan
   bluetti-cli scan --all --timeout 30
-  bluetti-cli info aa:bb:cc:dd:ee:ff
+  bluetti-cli dump aa:bb:cc:dd:ee:ff
   bluetti-cli info aa:bb:cc:dd:ee:ff --registers ac200p
 `);
 }
@@ -187,7 +190,7 @@ async function printGattTree(bleDevice) {
   }
 }
 
-async function dumpRegisters(bleDevice, mac, args) {
+async function printRegisterValues(bleDevice, mac, args) {
   const { loadCsv, decodeValue } = require("./lib/csv-loader");
   const { resolvePath, convertUnits } = require("./lib/path-mapper");
   const { readEncryptionKey } = require("./lib/encryption");
@@ -258,10 +261,10 @@ async function dumpRegisters(bleDevice, mac, args) {
   }
 }
 
-async function cmdInfo(args) {
+async function withConnectedDevice(args, usageLine, body) {
   const mac = args._[0];
   if (!mac) {
-    console.error("Error: MAC address required. Usage: bluetti-cli info <mac>");
+    console.error(`Error: MAC address required. Usage: ${usageLine}`);
     process.exitCode = 1;
     return;
   }
@@ -280,17 +283,27 @@ async function cmdInfo(args) {
     }
 
     await printDeviceSummary(bleDevice, mac);
-
-    if (args.registers) {
-      await dumpRegisters(bleDevice, mac, args);
-    } else {
-      await printGattTree(bleDevice);
-    }
+    await body(bleDevice, mac);
   } finally {
     try {
       bt.destroy();
     } catch {}
   }
+}
+
+async function cmdDump(args) {
+  await withConnectedDevice(args, "bluetti-cli dump <mac>", (bleDevice) => printGattTree(bleDevice));
+}
+
+async function cmdInfo(args) {
+  if (!args.registers) {
+    console.error("Error: --registers <model|path> is required. Usage: bluetti-cli info <mac> --registers <model|path>");
+    process.exitCode = 1;
+    return;
+  }
+  await withConnectedDevice(args, "bluetti-cli info <mac> --registers <model|path>", (bleDevice, mac) =>
+    printRegisterValues(bleDevice, mac, args),
+  );
 }
 
 // ── main ─────────────────────────────────────────────────────────────────
@@ -302,6 +315,9 @@ async function main() {
   switch (command) {
     case "scan":
       await cmdScan(args);
+      break;
+    case "dump":
+      await cmdDump(args);
       break;
     case "info":
       await cmdInfo(args);

@@ -7,6 +7,7 @@ All notable changes to this plugin are documented here. Format loosely follows [
 - Fix handling of node-ble 128-bit UUIDs
 - Fix encrypted reads for Elite v2 BLE
   - Confirmed successful values read from an Elite 100 V2
+- CLI now has separate `dump` and `info` commands for raw and interpreted data
 
 ## [1.2.0]
 
