@@ -46,7 +46,10 @@
     "signalk-server": "*"
   },
   "signalk": {
-    "displayName": "Bluetti Monitoring"
+    "displayName": "Bluetti Monitoring",
+    "recommends": [
+      "@rhizomatics/signalk-einklabel-plugin"
+    ]
   },
   "signalk-plugin-enabled-by-default": false
 }
