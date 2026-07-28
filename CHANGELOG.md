@@ -2,6 +2,11 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.3]
+
+- Metadata changes only, including git repo transfer
+- README and CHANGELOG now included in package
+
 ## [1.3.2]
 
 - Correct SignalK paths so state of charge shows as a percentage
