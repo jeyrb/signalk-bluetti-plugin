@@ -1,5 +1,14 @@
 {
   "permissions": {
-    "allow": ["Bash(/bin/ls -la)", "Bash(node -e \"console.log\\(process.version\\)\")", "Bash(npm ci *)"]
+    "allow": [
+      "Bash(/bin/ls -la)",
+      "Bash(node -e \"console.log\\(process.version\\)\")",
+      "Bash(npm ci *)",
+      "Bash(curl -fsSL https://raw.githubusercontent.com/SignalK/signalk-server/master/.github/workflows/plugin-ci.yml -o /tmp/plugin-ci.yml)",
+      "Read(//tmp/**)",
+      "Bash(grep -n \"coverage-command\\\\|test-command\\\\|node-version\\\\|armv7\\\\|matrix:\" /tmp/plugin-ci.yml | head -80)",
+      "Bash(npm test *)",
+      "Bash(npm run *)"
+    ]
   }
 }

@@ -2,6 +2,10 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.1]
+
+- Basic test suite
+
 ## [1.4.0]
 
 - Normalize and extend paths for SignalK

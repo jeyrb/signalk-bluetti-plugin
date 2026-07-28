@@ -11,3 +11,8 @@ jobs:
     uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
     with:
       format-check-command: npm run fmt:check
+      # Desktop matrix only (Node 22/24) — replaces the plain `npm test` step
+      # there with coverage + 80% thresholds. armv7 (fixed Node 20) always
+      # uses test-command (default `npm test`), since the coverage-threshold
+      # CLI flags below need Node >=22.8.
+      coverage-command: npm run test:coverage

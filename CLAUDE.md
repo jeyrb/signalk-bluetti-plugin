@@ -5,11 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm install          # install dependencies (requires Node.js with native addon support for @stoprocent/noble)
-node index.js        # run standalone (limited use — normally loaded by SignalK server)
+npm install              # install dependencies (requires Node.js with native addon support for @naugehyde/node-ble)
+node index.js            # run standalone (limited use — normally loaded by SignalK server)
+npm test                 # run the test suite (node:test, no extra deps)
+npm run test:coverage    # same, plus coverage report with 80% line/branch/function thresholds
+npm run lint             # oxlint
+npm run fmt:check        # oxfmt --check
 ```
 
-There is no build step, no linter config, and no test suite. The plugin is loaded by the SignalK server from `index.js`.
+There is no build step. The plugin is loaded by the SignalK server from `index.js`.
+
+Tests live in `test/*.test.js` and cover the deterministic core — `lib/protocol.js`, `lib/csv-loader.js`, `lib/path-mapper.js`, `lib/encryption.js`, `lib/v2-encryption.js` — plus an end-to-end regression check against the real bundled `registers/*.csv` files. `lib/device.js` and `lib/scanner.js` are BLE-hardware integration glue and are excluded from the coverage target (`test:coverage`'s `--test-coverage-exclude`) rather than mocked.
 
 To exercise the plugin locally, install it into a running SignalK server:
 

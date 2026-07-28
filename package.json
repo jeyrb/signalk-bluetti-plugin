@@ -1,6 +1,6 @@
 {
   "name": "@rhizomatics/signalk-bluetti-plugin",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE. Beta, use with caution.",
   "keywords": [
     "battery",
@@ -39,7 +39,9 @@
     "cli": "node cli.js",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "test": "node --test",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include=\"lib/**/*.js\" --test-coverage-exclude=\"lib/device.js\" --test-coverage-exclude=\"lib/scanner.js\" --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test"
   },
   "dependencies": {
     "@naugehyde/node-ble": "^1.13.5",
