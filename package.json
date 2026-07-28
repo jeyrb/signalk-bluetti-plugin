@@ -26,9 +26,6 @@
   "scripts": {
     "start": "node index.js",
     "cli": "node cli.js",
-    "test": "node scripts/run-tests.js",
-    "coverage": "node scripts/run-tests.js --coverage",
-    "prepublishOnly": "npm run build",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint"
