@@ -2,6 +2,11 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.1]
+
+- Back off if bluetooth daemon not available at startup
+- Fix scaling of current state of charge value
+
 ## [1.3.0]
 
 - Fix handling of node-ble 128-bit UUIDs

@@ -5,7 +5,7 @@
 # Note: DEVICE_TYPE (110) and DEVICE_SN (116) are string/serial fields — omitted.
 #
 field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path
-battery_soc,102,1,uint16,0.01,0,%,electrical.batteries.{name}.stateOfCharge
+battery_soc,102,1,uint16,1,0,%,electrical.batteries.{name}.stateOfCharge
 dc_output_power,140,1,uint16,1,0,W,electrical.dc.{name}.power
 ac_output_power,142,1,uint16,1,0,W,electrical.inverters.{name}.ac.power
 dc_input_power,144,1,uint16,1,0,W,electrical.solar.{name}.panelPower
