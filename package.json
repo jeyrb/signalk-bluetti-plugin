@@ -29,6 +29,7 @@
     "index.js",
     "cli.js",
     "lib/",
+    "docs/assets/",
     "registers/",
     "README.md",
     "CHANGELOG.md"
