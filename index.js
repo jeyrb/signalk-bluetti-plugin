@@ -8,7 +8,7 @@ const PLUGIN_ID = "signalk-bluetti-plugin";
 const REGISTERS_DIR = path.join(__dirname, "registers");
 
 // Bluetti device BLE name prefixes (mirrors scanner.js).
-const BLUETTI_PREFIXES = ["BT-TH-", "BLUETTI", "AC", "EP", "EB", "EL"];
+const BLUETTI_PREFIXES = ["BT-TH-", "BLUETTI", "AC", "EP", "EB", "EL", "PR", "AP"];
 
 // Search $HOME for exactly one CSV whose stem looks like a Bluetti device ID.
 // Returns the full path if exactly one match, empty string otherwise.

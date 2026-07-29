@@ -6,7 +6,7 @@
 ![code style: oxfmt](https://img.shields.io/badge/code_style-oxfmt-blue.svg)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/rhizomatics/signalk-bluetti-plugin/blob/main/LICENSE)
 
-A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. BETA status (only knows about Elite 100V2 and AC200P, extensible to all BLE enabled stations).
+A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection.  Supports 20+ stations, extensible by configuration. Also offers a CLI for easier exploring and debugging.
 
 ![Example Data](docs/assets/screenshots/bluetti_data.png)
 
@@ -129,3 +129,12 @@ sudo systemctl restart signalk
 ```
 
 This tells systemd to start `bluetoothd` first and wait for it before starting SignalK, rather than relying on both racing to start in parallel at boot.
+
+### My station isn't supported
+
+Additional products can be added using a CSV file mapping registers and providing static values.
+
+Check one of these projects to see if some of the mapping work has been done:
+
+* https://github.com/Patrick762/bluetti-bt-lib
+* https://github.com/warhammerkid/bluetti_mqtt

@@ -1,0 +1,27 @@
+# Bluetti EP500P register map
+# Source: https://github.com/Patrick762/bluetti-bt-lib (bluetti_bt_lib/devices/ep500p.py)
+#
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). signalk_path is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. constant_value is for fixed, non-register facts about this model
+# (register_address left blank for those rows). No verified nominal capacity
+# (Wh) is bundled — add a total_capacity constant row yourself if you know it,
+# to enable the derived remaining-capacity calculation.
+#
+field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path,constant_value
+battery_soc,43,1,uint16,1,0,%,,
+dc_input_power,36,1,uint16,1,0,W,,
+ac_input_power,37,1,uint16,1,0,W,,
+ac_output_power,38,1,uint16,1,0,W,,
+dc_output_power,39,1,uint16,1,0,W,,
+ac_output_voltage,71,1,uint16,0.1,0,V,,
+ac_output_frequency,74,1,uint16,0.01,0,Hz,,
+ac_input_voltage,77,1,uint16,0.1,0,V,,
+ac_input_frequency,80,1,uint16,0.01,0,Hz,,
+dc_input_voltage,86,1,uint16,0.1,0,V,,
+dc_input_current,88,1,uint16,0.1,0,A,,
+# ── Fixed model facts ────────────────────────────────────────────────────────
+battery_chemistry,,,,,,,,LiFePO4
+battery_manufacturer_name,,,,,,,,Bluetti
+battery_manufacturer_model,,,,,,,,EP500P

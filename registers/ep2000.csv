@@ -1,0 +1,32 @@
+# Bluetti EP2000 register map
+# Source: https://github.com/Patrick762/bluetti-bt-lib (bluetti_bt_lib/devices/ep2000.py)
+# 3-phase home-backup inverter — only voltage (no power/current) is exposed per AC/grid line on this model.
+#
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). signalk_path is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. constant_value is for fixed, non-register facts about this model
+# (register_address left blank for those rows). No verified nominal capacity
+# (Wh) is bundled — add a total_capacity constant row yourself if you know it,
+# to enable the derived remaining-capacity calculation.
+#
+field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path,constant_value
+battery_soc,102,1,uint16,1,0,%,,
+dc_input_power,1212,1,uint16,1,0,W,,
+dc_input_voltage,1213,1,uint16,0.1,0,V,,
+dc_input_current,1214,1,uint16,0.1,0,A,,
+pv_s2_power,1220,1,uint16,1,0,W,,
+pv_s2_voltage,1221,1,uint16,0.1,0,V,,
+pv_s2_current,1222,1,uint16,0.1,0,A,,
+grid_frequency,1300,1,uint16,0.1,0,Hz,,
+grid_p1_voltage,1314,1,uint16,0.1,0,V,,
+grid_p2_voltage,1320,1,uint16,0.1,0,V,,
+grid_p3_voltage,1326,1,uint16,0.1,0,V,,
+ac_output_frequency,1500,1,uint16,0.1,0,Hz,,
+ac_p1_voltage,1511,1,uint16,0.1,0,V,,
+ac_p2_voltage,1518,1,uint16,0.1,0,V,,
+ac_p3_voltage,1525,1,uint16,0.1,0,V,,
+# ── Fixed model facts ────────────────────────────────────────────────────────
+battery_chemistry,,,,,,,,LiFePO4
+battery_manufacturer_name,,,,,,,,Bluetti
+battery_manufacturer_model,,,,,,,,EP2000

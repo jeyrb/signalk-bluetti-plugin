@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.0]
+
+- Expanded Bluetti model support
+- Configuration moved from CSV to YAML
+- Configurable directory to add YAML files for unsupported Bluetti models
+
 ## [1.4.1]
 
 - Basic test suite

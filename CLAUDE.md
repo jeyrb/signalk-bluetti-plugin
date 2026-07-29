@@ -39,6 +39,8 @@ Scanner (BLE discovery)
             → app.handleMessage() (publishes to SignalK)
 ```
 
+SignalK paths are in the `electrical` domain, defined at https://github.com/SignalK/signalk-server/blob/26ab1992be465081590c06d4a039b2fa3082825e/packages/path-metadata/src/electrical.ts
+
 ### Module responsibilities
 
 - **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes.

@@ -9,6 +9,7 @@
 
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("fs");
 const path = require("path");
 const { loadCsv } = require("../lib/csv-loader");
 const { buildDelta } = require("../lib/path-mapper");
@@ -118,4 +119,44 @@ describe("registers/el100v2.csv", () => {
   test("renames ac_output_power to realPower", () => {
     assert.equal(values.get("electrical.inverters.test.ac.realPower"), 1);
   });
+});
+
+// Every bundled register map, regardless of model — a lighter-weight version
+// of the model-specific checks above that just guards against the most common
+// mistake when adding a new CSV: a field_name that doesn't resolve to any
+// SignalK path (typo'd against STANDARD_FIELD_PATHS, or falling through to
+// the generic electrical.<name>.<field_name> catch-all instead of a proper
+// path) and register rows that overlap each other.
+describe("every bundled register map", () => {
+  const models = fs
+    .readdirSync(REGISTERS_DIR)
+    .filter((f) => f.endsWith(".csv"))
+    .map((f) => f.replace(/\.csv$/, ""));
+
+  for (const model of models) {
+    test(`${model}.csv loads and every register maps to a distinct, well-formed path`, () => {
+      const fields = loadCsv(path.join(REGISTERS_DIR, `${model}.csv`));
+
+      // No two fields should claim the same register address.
+      const claimed = new Map();
+      for (const field of fields) {
+        if (field.register === null) continue;
+        for (let i = 0; i < field.count; i++) {
+          const addr = field.register + i;
+          assert.ok(!claimed.has(addr), `${model}.csv: register ${addr} claimed by both ${claimed.get(addr)} and ${field.fieldName}`);
+          claimed.set(addr, field.fieldName);
+        }
+      }
+
+      // Seed every claimed register with a plausible non-zero value and poll.
+      const seed = {};
+      for (const addr of claimed.keys()) seed[addr] = 500;
+      const { values } = simulatePoll(model, seed);
+
+      assert.ok(values.size > 0, `${model}.csv: no paths published`);
+      for (const p of values.keys()) {
+        assert.ok(!/^electrical\.test\.[a-z0-9_]+$/.test(p), `${model}.csv: field fell through to generic catch-all path ${p}`);
+      }
+    });
+  }
 });

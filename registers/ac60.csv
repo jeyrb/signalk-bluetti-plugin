@@ -1,0 +1,21 @@
+# Bluetti AC60 register map
+# Source: https://github.com/Patrick762/bluetti-bt-lib (bluetti_bt_lib/devices/ac60.py)
+#
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). signalk_path is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. constant_value is for fixed, non-register facts about this model
+# (register_address left blank for those rows). No verified nominal capacity
+# (Wh) is bundled — add a total_capacity constant row yourself if you know it,
+# to enable the derived remaining-capacity calculation.
+#
+field_name,register_address,register_count,data_type,scale,offset,unit,signalk_path,constant_value
+dc_output_power,140,1,uint16,1,0,W,,
+ac_output_power,142,1,uint16,1,0,W,,
+dc_input_power,144,1,uint16,1,0,W,,
+ac_input_power,146,1,uint16,1,0,W,,
+ac_input_voltage,1314,1,uint16,1,0,V,,
+# ── Fixed model facts ────────────────────────────────────────────────────────
+battery_chemistry,,,,,,,,LiFePO4
+battery_manufacturer_name,,,,,,,,Bluetti
+battery_manufacturer_model,,,,,,,,AC60
