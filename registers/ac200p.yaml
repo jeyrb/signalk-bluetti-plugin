@@ -1,0 +1,89 @@
+# Bluetti register map example — based on AC200P / AC200MAX community reverse-engineering.
+# Replace with your device's actual map if you have better data.
+#
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). `path` on a field is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. `constants` are fixed, non-register facts about this model —
+# a bare scalar (string/number) or { value, unit } for one that needs unit
+# conversion (e.g. total_capacity in Wh -> J). No verified nominal capacity
+# is bundled for most models — add a total_capacity constant yourself if you
+# know it, to enable the derived remaining-capacity calculation.
+#
+
+fields:
+  battery_percent:
+    register: 100
+    unit: "%"
+  battery_voltage:
+    register: 101
+    scale: 0.1
+    unit: V
+  battery_current:
+    register: 102
+    type: int16
+    scale: 0.1
+    unit: A
+  battery_power:
+    register: 103
+    type: int16
+    unit: W
+  battery_temperature:
+    register: 104
+    scale: 0.1
+    unit: °C
+  dc_input_power:
+    register: 107
+    unit: W
+  dc_input_voltage:
+    register: 108
+    scale: 0.1
+    unit: V
+  dc_input_current:
+    register: 109
+    scale: 0.1
+    unit: A
+  ac_output_power:
+    register: 110
+    unit: W
+  ac_output_voltage:
+    register: 111
+    scale: 0.1
+    unit: V
+  ac_output_current:
+    register: 112
+    scale: 0.1
+    unit: A
+  ac_output_frequency:
+    register: 113
+    scale: 0.1
+    unit: Hz
+  ac_input_power:
+    register: 114
+    unit: W
+  ac_input_voltage:
+    register: 115
+    scale: 0.1
+    unit: V
+  ac_input_current:
+    register: 116
+    scale: 0.1
+    unit: A
+  ac_input_frequency:
+    register: 117
+    scale: 0.1
+    unit: Hz
+  internal_temperature:
+    register: 118
+    scale: 0.1
+    unit: °C
+  time_remaining_minutes:
+    register: 119
+    unit: min
+constants:
+  battery_chemistry: LiFePO4
+  total_capacity:
+    value: 2000
+    unit: Wh
+  battery_manufacturer_name: Bluetti
+  battery_manufacturer_model: AC200P

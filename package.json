@@ -8,9 +8,12 @@
     "bluetooth",
     "bluetti",
     "electrical",
+    "generator",
     "marine",
+    "signalk",
     "signalk-node-plugin",
-    "signalk-node-server-plugin"
+    "signalk-node-server-plugin",
+    "solar"
   ],
   "homepage": "https://github.com/rhizomatics/signalk-bluetti-plugin.git",
   "bugs": {
@@ -30,6 +33,7 @@
     "cli.js",
     "lib/",
     "docs/assets/",
+    "docs/examples/",
     "registers/",
     "README.md",
     "CHANGELOG.md"
@@ -46,11 +50,11 @@
   },
   "dependencies": {
     "@naugehyde/node-ble": "^1.13.5",
-    "csv-parse": "^5.5.6"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "oxfmt": "^0.61.0",
-    "oxlint": "^1.76.0",
+    "oxlint": "^1.75.0",
     "oxlint-tsgolint": "^7.0.2001"
   },
   "engines": {

@@ -2,20 +2,56 @@
 "use strict";
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const REGISTERS_DIR = path.join(__dirname, "registers");
+// Same default the plugin itself uses when running under a real SignalK
+// server (see index.js) — lets a user's custom register maps be found by the
+// CLI too, without needing to pass --registers-dir.
+const DEFAULT_USER_REGISTERS_DIR = path.join(os.homedir(), ".signalk", "bluetti");
 
-function listBuiltinModels() {
+function listModels(dir) {
   try {
     return fs
-      .readdirSync(REGISTERS_DIR)
-      .filter((f) => f.endsWith(".csv"))
-      .map((f) => f.replace(/\.csv$/, ""))
+      .readdirSync(dir)
+      .filter((f) => /\.ya?ml$/.test(f))
+      .map((f) => f.replace(/\.ya?ml$/, ""))
       .sort();
   } catch {
     return [];
   }
+}
+
+function listBuiltinModels() {
+  return [...new Set([...listModels(REGISTERS_DIR), ...listModels(DEFAULT_USER_REGISTERS_DIR)])].sort((a, b) => a.localeCompare(b));
+}
+
+// One row per model, checking the custom directory before the bundled one so
+// a user's own file overriding a built-in shows up as "custom" — same
+// resolution order as resolveRegistersArg()/the plugin itself.
+function listModelDetails() {
+  const { loadRegisters } = require("./lib/register-loader");
+
+  return listBuiltinModels().map((model) => {
+    for (const [dir, source] of [
+      [DEFAULT_USER_REGISTERS_DIR, "custom"],
+      [REGISTERS_DIR, "built-in"],
+    ]) {
+      for (const ext of [".yaml", ".yml"]) {
+        const p = path.join(dir, `${model}${ext}`);
+        if (!fs.existsSync(p)) continue;
+        try {
+          const fields = loadRegisters(p);
+          const constants = fields.filter((f) => f.dataType === "const").length;
+          return { model, fields: fields.length - constants, constants, source, path: p };
+        } catch (err) {
+          return { model, fields: "?", constants: "?", source, path: `${p} (failed to load: ${err.message})` };
+        }
+      }
+    }
+    return { model, fields: "?", constants: "?", source: "?", path: "" };
+  });
 }
 
 function usage() {
@@ -41,10 +77,15 @@ Commands:
                                 the plugin does
                                 If mac is omitted, scans and uses the first
                                 Bluetti device found.
-    --registers <model|path>     Built-in model (${builtins.join(", ") || "none bundled"}) or a CSV path (required)
+    --registers <model|path>     Built-in model (${builtins.join(", ") || "none bundled"}) or a register map
+                                  YAML path (required). Also checks
+                                  ${DEFAULT_USER_REGISTERS_DIR} for custom models.
     --encryption-key <path>      Path to the Bluetti-provided encryption CSV
                                   (only needed for legacy XOR-scrambled models)
     --timeout <seconds>          Discovery/scan timeout if not already known (default: 20)
+
+  models                       List supported register maps, with a field and
+                                constant count per model
 
   help                         Show this help
 
@@ -55,6 +96,7 @@ Examples:
   bluetti-cli dump
   bluetti-cli info aa:bb:cc:dd:ee:ff --registers ac200p
   bluetti-cli info --registers ac200p
+  bluetti-cli models
 `);
 }
 
@@ -138,8 +180,12 @@ async function findDevice(adapter, mac, timeoutMs) {
 }
 
 function resolveRegistersArg(value) {
-  const builtinPath = path.join(REGISTERS_DIR, `${value}.csv`);
-  if (fs.existsSync(builtinPath)) return builtinPath;
+  for (const dir of [DEFAULT_USER_REGISTERS_DIR, REGISTERS_DIR]) {
+    for (const ext of [".yaml", ".yml"]) {
+      const p = path.join(dir, `${value}${ext}`);
+      if (fs.existsSync(p)) return p;
+    }
+  }
   if (fs.existsSync(value)) return value;
   const builtins = listBuiltinModels();
   throw new Error(`Register map not found: "${value}" (not a built-in model [${builtins.join(", ")}] or an existing file path)`);
@@ -212,14 +258,14 @@ async function printGattTree(bleDevice) {
 }
 
 async function printRegisterValues(bleDevice, mac, args) {
-  const { loadCsv, decodeValue } = require("./lib/csv-loader");
+  const { loadRegisters, decodeValue } = require("./lib/register-loader");
   const { resolvePath, convertUnits } = require("./lib/path-mapper");
   const { readEncryptionKey } = require("./lib/encryption");
   const { groupRegisters } = require("./lib/protocol");
   const BluettiDevice = require("./lib/device");
 
   const registerPath = resolveRegistersArg(args.registers);
-  const fields = loadCsv(registerPath);
+  const fields = loadRegisters(registerPath);
   console.log(`\nLoaded ${fields.length} register field(s) from ${registerPath}`);
 
   const addrs = [...new Set(fields.flatMap((f) => Array.from({ length: f.count }, (_, i) => f.register + i)))];
@@ -355,6 +401,17 @@ async function cmdInfo(args) {
   );
 }
 
+// ── models ───────────────────────────────────────────────────────────────
+
+function cmdModels() {
+  const rows = listModelDetails();
+  if (rows.length === 0) {
+    console.log(`No register maps found (checked ${REGISTERS_DIR} and ${DEFAULT_USER_REGISTERS_DIR}).`);
+    return;
+  }
+  printTable(rows, ["model", "fields", "constants", "source"]);
+}
+
 // ── main ─────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -370,6 +427,9 @@ async function main() {
       break;
     case "info":
       await cmdInfo(args);
+      break;
+    case "models":
+      cmdModels();
       break;
     case "help":
     case "--help":

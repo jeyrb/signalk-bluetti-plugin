@@ -1,0 +1,112 @@
+# Example register map for a Bluetti device this plugin doesn't bundle yet.
+#
+# Drop a copy of this file (renamed, e.g. my-device.yaml) into your custom
+# register maps directory — see the plugin's "Custom register maps directory"
+# setting, which defaults to <SignalK home>/bluetti (e.g. ~/.signalk/bluetti)
+# — and it'll show up in the "Register map" dropdown for a device, keyed by
+# its filename (without .yaml).
+#
+# Two top-level keys:
+#
+#   fields:    one entry per live Modbus holding register on the device.
+#              The key is the field name; standard names (see lib/path-mapper.js's
+#              STANDARD_FIELD_PATHS) are resolved to a SignalK path automatically —
+#              use whichever of these match what your device actually reports.
+#              Any other name gets a best-effort guess, or set `path:` explicitly.
+#
+#     <field_name>:
+#       register: <number>     # Modbus holding register address (required)
+#       type: uint16            # uint16 (default) | int16 | uint32 | int32 | float32 | bool
+#       count: <number>         # registers this field spans; inferred from `type` if omitted
+#       scale: <number>         # multiply the raw value by this (default 1)
+#       offset: <number>        # add after scaling (default 0)
+#       unit: V                 # V | A | W | Wh | kWh | % | °C | Hz | min — drives SignalK unit conversion
+#       path: electrical.batteries.{name}.voltage   # optional override; {name} is the per-device name from config
+#
+#   constants: fixed, non-register facts about this model — a bare scalar
+#              (string or number) or, for a number that needs unit conversion
+#              (e.g. a capacity in Wh), an expanded { value, unit } form.
+#
+# Standard field names worth knowing: battery_soc, battery_voltage,
+# battery_current, battery_power, battery_temperature, dc_input_power/voltage/current
+# (solar), ac_output_power/voltage/current/frequency (inverter), ac_input_power/
+# voltage/current/frequency (mains charger), time_remaining_minutes,
+# total_capacity, battery_chemistry, battery_manufacturer_name, battery_manufacturer_model.
+
+fields:
+  battery_percent:
+    register: 100
+    unit: "%"
+  battery_voltage:
+    register: 101
+    scale: 0.1
+    unit: V
+  battery_current:
+    register: 102
+    type: int16
+    scale: 0.1
+    unit: A
+  battery_power:
+    register: 103
+    type: int16
+    unit: W
+  battery_temperature:
+    register: 104
+    scale: 0.1
+    unit: "°C"
+  dc_input_power:
+    register: 107
+    unit: W
+  dc_input_voltage:
+    register: 108
+    scale: 0.1
+    unit: V
+  dc_input_current:
+    register: 109
+    scale: 0.1
+    unit: A
+  ac_output_power:
+    register: 110
+    unit: W
+  ac_output_voltage:
+    register: 111
+    scale: 0.1
+    unit: V
+  ac_output_current:
+    register: 112
+    scale: 0.1
+    unit: A
+  ac_output_frequency:
+    register: 113
+    scale: 0.1
+    unit: Hz
+  ac_input_power:
+    register: 114
+    unit: W
+  ac_input_voltage:
+    register: 115
+    scale: 0.1
+    unit: V
+  ac_input_current:
+    register: 116
+    scale: 0.1
+    unit: A
+  ac_input_frequency:
+    register: 117
+    scale: 0.1
+    unit: Hz
+  internal_temperature:
+    register: 118
+    scale: 0.1
+    unit: "°C"
+  time_remaining_minutes:
+    register: 119
+    unit: min
+
+constants:
+  battery_chemistry: LiFePO4
+  battery_manufacturer_name: Bluetti
+  battery_manufacturer_model: My Device
+  total_capacity:
+    value: 2000
+    unit: Wh

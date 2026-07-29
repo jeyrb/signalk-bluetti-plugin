@@ -1,0 +1,21 @@
+# Bluetti EP800 register map
+# Source: https://github.com/Patrick762/bluetti-bt-lib (bluetti_bt_lib/devices/ep800.py)
+#
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). `path` on a field is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. `constants` are fixed, non-register facts about this model —
+# a bare scalar (string/number) or { value, unit } for one that needs unit
+# conversion (e.g. total_capacity in Wh -> J). No verified nominal capacity
+# is bundled for most models — add a total_capacity constant yourself if you
+# know it, to enable the derived remaining-capacity calculation.
+#
+
+fields:
+  battery_soc:
+    register: 102
+    unit: "%"
+constants:
+  battery_chemistry: LiFePO4
+  battery_manufacturer_name: Bluetti
+  battery_manufacturer_model: EP800

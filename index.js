@@ -26,16 +26,26 @@ function findBluettiEncryptionCsvInHome() {
   }
 }
 
-function builtinModelNames() {
+function yamlModelNames(dir) {
   try {
     return fs
-      .readdirSync(REGISTERS_DIR)
-      .filter((f) => f.endsWith(".csv"))
-      .map((f) => f.replace(/\.csv$/, ""))
+      .readdirSync(dir)
+      .filter((f) => /\.ya?ml$/.test(f))
+      .map((f) => f.replace(/\.ya?ml$/, ""))
       .sort();
   } catch {
     return [];
   }
+}
+
+// The directory a user can drop their own register map YAML files into,
+// without needing to fork/publish the plugin — defaults to a `bluetti`
+// subdirectory of the SignalK home directory (e.g. ~/.signalk/bluetti).
+// `app.config.configPath` isn't part of the documented plugin API but is the
+// long-established way plugins locate the SignalK home directory.
+function defaultUserRegistersDir(app) {
+  const home = app && app.config && app.config.configPath;
+  return home ? path.join(home, "bluetti") : null;
 }
 
 module.exports = function (app) {
@@ -46,7 +56,15 @@ module.exports = function (app) {
   let scanResultCache = [];
   let waitingStatusTimer = null;
 
-  const builtins = builtinModelNames();
+  const defaultUserDir = defaultUserRegistersDir(app);
+  const builtins = yamlModelNames(REGISTERS_DIR);
+  // Models available for the dropdown at schema-render time — bundled plus
+  // whatever's already sitting in the default user directory. If `registersDir`
+  // is overridden away from the default, models unique to that directory won't
+  // appear here until the plugin restarts with the new setting saved.
+  const allModels = [...new Set([...builtins, ...(defaultUserDir ? yamlModelNames(defaultUserDir) : [])])].sort((a, b) =>
+    a.localeCompare(b),
+  );
 
   // ── Plugin metadata ────────────────────────────────────────────────────
 
@@ -67,6 +85,12 @@ module.exports = function (app) {
         title: "Scan for new devices on plugin start",
         description: "Runs a 15-second BLE scan and logs discovered Bluetti devices. Useful for finding device addresses.",
         default: true,
+      },
+      registersDir: {
+        type: "string",
+        title: "Custom register maps directory",
+        description: `Directory to scan for your own register map YAML files (e.g. for a model this plugin doesn't bundle yet), in addition to the ones built in. Leave blank to use the default: ${defaultUserDir || "<SignalK home>/bluetti"}.`,
+        default: "",
       },
       devices: {
         type: "array",
@@ -93,15 +117,16 @@ module.exports = function (app) {
             },
             builtinModel: {
               type: "string",
-              title: "Built-in register map",
-              description: 'Select a bundled register map for your device model, or "custom" to supply your own CSV path below.',
-              enum: ["custom", ...builtins],
-              default: builtins.length > 0 ? builtins[0] : "custom",
+              title: "Register map",
+              description:
+                'Select a register map for your device model — bundled with the plugin, or dropped into the custom register maps directory above — or "custom" to supply an explicit YAML file path below.',
+              enum: ["custom", ...allModels],
+              default: allModels.length > 0 ? allModels[0] : "custom",
             },
-            csvPath: {
+            registerMapPath: {
               type: "string",
-              title: "Custom register map CSV path",
-              description: 'Absolute path to a register definition CSV. Only used when "custom" is selected above.',
+              title: "Custom register map YAML path",
+              description: 'Absolute path to a register map YAML file. Only used when "custom" is selected above.',
               default: "",
             },
             encryptionCsvPath: {
@@ -124,11 +149,12 @@ module.exports = function (app) {
   };
 
   plugin.uiSchema = {
+    registersDir: { "ui:placeholder": defaultUserDir || "e.g. /home/pi/.signalk/bluetti" },
     devices: {
       items: {
         address: { "ui:placeholder": "aa:bb:cc:dd:ee:ff" },
         name: { "ui:placeholder": "house" },
-        csvPath: { "ui:placeholder": "e.g. /path/to/my-device-registers.csv" },
+        registerMapPath: { "ui:placeholder": "e.g. /path/to/my-device-registers.yaml" },
         encryptionCsvPath: { "ui:placeholder": "e.g. /path/to/19e1646709e0421b755fa9dda74.csv" },
       },
     },
@@ -137,16 +163,25 @@ module.exports = function (app) {
   // ── Start ──────────────────────────────────────────────────────────────
 
   plugin.start = function (options) {
-    let Scanner, BluettiDevice, loadCsv, buildDelta, readEncryptionKey;
+    let Scanner, BluettiDevice, loadRegisters, buildDelta, readEncryptionKey;
     try {
       Scanner = require("./lib/scanner");
       BluettiDevice = require("./lib/device");
-      ({ loadCsv } = require("./lib/csv-loader"));
+      ({ loadRegisters } = require("./lib/register-loader"));
       ({ buildDelta } = require("./lib/path-mapper"));
       ({ readEncryptionKey } = require("./lib/encryption"));
     } catch (err) {
       app.setPluginError(`Dependency load failed: ${err.message}. Run: npm install inside the plugin directory.`);
       return;
+    }
+
+    const userRegistersDir = options.registersDir || defaultUserDir;
+    if (userRegistersDir) {
+      try {
+        fs.mkdirSync(userRegistersDir, { recursive: true });
+      } catch (err) {
+        log(`Could not create custom register maps directory "${userRegistersDir}": ${err.message}`);
+      }
     }
 
     scanner = new Scanner(log);
@@ -185,7 +220,7 @@ module.exports = function (app) {
     // Build address → cfg lookup (normalise to lowercase, no colons)
     const normalise = (addr) => addr.toLowerCase().replace(/:/g, "");
     const pending = new Map(devices.map((cfg) => [normalise(cfg.address), cfg]));
-    const deps = { BluettiDevice, loadCsv, buildDelta, readEncryptionKey };
+    const deps = { BluettiDevice, loadRegisters, buildDelta, readEncryptionKey, userRegistersDir };
 
     scanner.on("discovered", ({ address, name, device: bleDevice }) => {
       scanResultCache.push({ address, name });
@@ -260,22 +295,40 @@ module.exports = function (app) {
     return null;
   }
 
-  function resolveRegisterMapPath(cfg) {
-    const { builtinModel, csvPath } = cfg;
-    if (!builtinModel || builtinModel === "custom") {
-      if (!csvPath) throw new Error("No register map: select a built-in model or provide a custom CSV path");
-      return csvPath;
+  // Finds <model>.yaml (or .yml), checking the custom directory before the
+  // bundled one so a user's own file can override a built-in of the same name.
+  function findModelFile(model, userRegistersDir) {
+    const dirs = [userRegistersDir, REGISTERS_DIR].filter(Boolean);
+    for (const dir of dirs) {
+      for (const ext of [".yaml", ".yml"]) {
+        const p = path.join(dir, `${model}${ext}`);
+        if (fs.existsSync(p)) return p;
+      }
     }
-    return path.join(REGISTERS_DIR, `${builtinModel}.csv`);
+    return null;
   }
 
-  function startDevice(cfg, bleDevice, bleName, { BluettiDevice, loadCsv, buildDelta, readEncryptionKey }) {
+  function resolveRegisterMapPath(cfg, userRegistersDir) {
+    const { builtinModel, registerMapPath } = cfg;
+    if (!builtinModel || builtinModel === "custom") {
+      if (!registerMapPath) throw new Error("No register map: select a model or provide a custom YAML path");
+      return registerMapPath;
+    }
+    const found = findModelFile(builtinModel, userRegistersDir);
+    if (!found)
+      throw new Error(
+        `Register map "${builtinModel}" not found (checked ${userRegistersDir ? `${userRegistersDir} and ` : ""}${REGISTERS_DIR})`,
+      );
+    return found;
+  }
+
+  function startDevice(cfg, bleDevice, bleName, { BluettiDevice, loadRegisters, buildDelta, readEncryptionKey, userRegistersDir }) {
     const { address, name, encryptionCsvPath = "", pollIntervalSeconds = 10 } = cfg;
     const registerCache = new Map(); // last-known value per field_name, across polls — see buildDelta
 
     let registerPath;
     try {
-      registerPath = resolveRegisterMapPath(cfg);
+      registerPath = resolveRegisterMapPath(cfg, userRegistersDir);
     } catch (err) {
       app.setPluginError(`[${name}] ${err.message}`);
       return;
@@ -283,7 +336,7 @@ module.exports = function (app) {
 
     let fields;
     try {
-      fields = loadCsv(registerPath);
+      fields = loadRegisters(registerPath);
       log(`[${name}] Loaded ${fields.length} registers from ${registerPath}`);
     } catch (err) {
       app.setPluginError(`[${name}] Failed to load register map "${registerPath}": ${err.message}`);

@@ -1,0 +1,75 @@
+# Bluetti EP2000 register map
+# Source: https://github.com/Patrick762/bluetti-bt-lib (bluetti_bt_lib/devices/ep2000.py)
+#
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). `path` on a field is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. `constants` are fixed, non-register facts about this model —
+# a bare scalar (string/number) or { value, unit } for one that needs unit
+# conversion (e.g. total_capacity in Wh -> J). No verified nominal capacity
+# is bundled for most models — add a total_capacity constant yourself if you
+# know it, to enable the derived remaining-capacity calculation.
+#
+
+fields:
+  battery_soc:
+    register: 102
+    unit: "%"
+  dc_input_power:
+    register: 1212
+    unit: W
+  dc_input_voltage:
+    register: 1213
+    scale: 0.1
+    unit: V
+  dc_input_current:
+    register: 1214
+    scale: 0.1
+    unit: A
+  pv_s2_power:
+    register: 1220
+    unit: W
+  pv_s2_voltage:
+    register: 1221
+    scale: 0.1
+    unit: V
+  pv_s2_current:
+    register: 1222
+    scale: 0.1
+    unit: A
+  grid_frequency:
+    register: 1300
+    scale: 0.1
+    unit: Hz
+  grid_p1_voltage:
+    register: 1314
+    scale: 0.1
+    unit: V
+  grid_p2_voltage:
+    register: 1320
+    scale: 0.1
+    unit: V
+  grid_p3_voltage:
+    register: 1326
+    scale: 0.1
+    unit: V
+  ac_output_frequency:
+    register: 1500
+    scale: 0.1
+    unit: Hz
+  ac_p1_voltage:
+    register: 1511
+    scale: 0.1
+    unit: V
+  ac_p2_voltage:
+    register: 1518
+    scale: 0.1
+    unit: V
+  ac_p3_voltage:
+    register: 1525
+    scale: 0.1
+    unit: V
+constants:
+  battery_chemistry: LiFePO4
+  battery_manufacturer_name: Bluetti
+  battery_manufacturer_model: EP2000

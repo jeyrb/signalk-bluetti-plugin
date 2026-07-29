@@ -43,7 +43,7 @@ describe("convertUnits", () => {
 });
 
 describe("resolvePath", () => {
-  test("uses an explicit CSV override, substituting {name}", () => {
+  test("uses an explicit path override, substituting {name}", () => {
     const field = { fieldName: "whatever", signalkPath: "electrical.custom.{name}.thing" };
     assert.equal(resolvePath(field, "house"), "electrical.custom.house.thing");
   });

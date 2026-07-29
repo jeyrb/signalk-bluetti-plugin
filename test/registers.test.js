@@ -1,17 +1,17 @@
 "use strict";
 
 // End-to-end regression check against the actual bundled register maps in
-// registers/*.csv — simulates a full poll cycle (registers arriving in
+// registers/*.yaml — simulates a full poll cycle (registers arriving in
 // separate batches, as device.js delivers them) and asserts the resulting
-// SignalK paths, catching CSV/path-mapper drift that synthetic unit tests
-// wouldn't (e.g. a model's field_name typo'd against the STANDARD_FIELD_PATHS
-// registry, so nothing gets published for it).
+// SignalK paths, catching register-map/path-mapper drift that synthetic unit
+// tests wouldn't (e.g. a model's field_name typo'd against the
+// STANDARD_FIELD_PATHS registry, so nothing gets published for it).
 
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
-const { loadCsv } = require("../lib/csv-loader");
+const { loadRegisters } = require("../lib/register-loader");
 const { buildDelta } = require("../lib/path-mapper");
 const { groupRegisters } = require("../lib/protocol");
 
@@ -21,7 +21,7 @@ const REGISTERS_DIR = path.join(__dirname, "..", "registers");
 // see both of their inputs) against synthetic register values, and returns
 // the union of every path published, keyed to its final value.
 function simulatePoll(model, seed) {
-  const fields = loadCsv(path.join(REGISTERS_DIR, `${model}.csv`));
+  const fields = loadRegisters(path.join(REGISTERS_DIR, `${model}.yaml`));
   const addrs = [...new Set(fields.flatMap((f) => Array.from({ length: f.count }, (_, i) => f.register + i)))];
   const batches = groupRegisters(addrs);
 
@@ -40,7 +40,7 @@ function simulatePoll(model, seed) {
   return { fields, values };
 }
 
-describe("registers/ac200p.csv", () => {
+describe("registers/ac200p.yaml", () => {
   const seed = {
     100: 80,
     101: 530,
@@ -96,7 +96,7 @@ describe("registers/ac200p.csv", () => {
   });
 });
 
-describe("registers/el100v2.csv", () => {
+describe("registers/el100v2.yaml", () => {
   const seed = { 102: 90, 140: 120, 142: 1, 144: 1, 146: 300, 1314: 2300 };
   const { values } = simulatePoll("el100v2", seed);
 
@@ -111,7 +111,7 @@ describe("registers/el100v2.csv", () => {
     assert.equal(values.get("electrical.chargers.test.current"), 300 / 230);
   });
 
-  test("derives DC output port current/voltage from the CSV's fixed dc_output_voltage", () => {
+  test("derives DC output port current/voltage from the register map's fixed dc_output_voltage", () => {
     assert.equal(values.get("electrical.batteries.test.voltage"), 12);
     assert.equal(values.get("electrical.batteries.test.current"), 120 / 12);
   });
@@ -123,19 +123,19 @@ describe("registers/el100v2.csv", () => {
 
 // Every bundled register map, regardless of model — a lighter-weight version
 // of the model-specific checks above that just guards against the most common
-// mistake when adding a new CSV: a field_name that doesn't resolve to any
+// mistake when adding a new one: a field_name that doesn't resolve to any
 // SignalK path (typo'd against STANDARD_FIELD_PATHS, or falling through to
 // the generic electrical.<name>.<field_name> catch-all instead of a proper
 // path) and register rows that overlap each other.
 describe("every bundled register map", () => {
   const models = fs
     .readdirSync(REGISTERS_DIR)
-    .filter((f) => f.endsWith(".csv"))
-    .map((f) => f.replace(/\.csv$/, ""));
+    .filter((f) => f.endsWith(".yaml"))
+    .map((f) => f.replace(/\.yaml$/, ""));
 
   for (const model of models) {
-    test(`${model}.csv loads and every register maps to a distinct, well-formed path`, () => {
-      const fields = loadCsv(path.join(REGISTERS_DIR, `${model}.csv`));
+    test(`${model}.yaml loads and every register maps to a distinct, well-formed path`, () => {
+      const fields = loadRegisters(path.join(REGISTERS_DIR, `${model}.yaml`));
 
       // No two fields should claim the same register address.
       const claimed = new Map();
@@ -143,7 +143,7 @@ describe("every bundled register map", () => {
         if (field.register === null) continue;
         for (let i = 0; i < field.count; i++) {
           const addr = field.register + i;
-          assert.ok(!claimed.has(addr), `${model}.csv: register ${addr} claimed by both ${claimed.get(addr)} and ${field.fieldName}`);
+          assert.ok(!claimed.has(addr), `${model}.yaml: register ${addr} claimed by both ${claimed.get(addr)} and ${field.fieldName}`);
           claimed.set(addr, field.fieldName);
         }
       }
@@ -153,9 +153,9 @@ describe("every bundled register map", () => {
       for (const addr of claimed.keys()) seed[addr] = 500;
       const { values } = simulatePoll(model, seed);
 
-      assert.ok(values.size > 0, `${model}.csv: no paths published`);
+      assert.ok(values.size > 0, `${model}.yaml: no paths published`);
       for (const p of values.keys()) {
-        assert.ok(!/^electrical\.test\.[a-z0-9_]+$/.test(p), `${model}.csv: field fell through to generic catch-all path ${p}`);
+        assert.ok(!/^electrical\.test\.[a-z0-9_]+$/.test(p), `${model}.yaml: field fell through to generic catch-all path ${p}`);
       }
     });
   }

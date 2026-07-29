@@ -1,0 +1,34 @@
+# Bluetti AP300 register map
+# Source: https://github.com/Patrick762/bluetti-bt-lib (bluetti_bt_lib/devices/ap300.py)
+#
+# field_name is a standard Bluetti register name — the code maps these to
+# SignalK paths on its own (see lib/path-mapper.js). `path` on a field is an
+# override, only needed if you're exposing a register the code doesn't
+# recognise. `constants` are fixed, non-register facts about this model —
+# a bare scalar (string/number) or { value, unit } for one that needs unit
+# conversion (e.g. total_capacity in Wh -> J). No verified nominal capacity
+# is bundled for most models — add a total_capacity constant yourself if you
+# know it, to enable the derived remaining-capacity calculation.
+#
+
+fields:
+  dc_output_power:
+    register: 140
+    unit: W
+  ac_output_power:
+    register: 142
+    unit: W
+  dc_input_power:
+    register: 144
+    unit: W
+  ac_input_power:
+    register: 146
+    unit: W
+  ac_input_voltage:
+    register: 1314
+    scale: 0.1
+    unit: V
+constants:
+  battery_chemistry: LiFePO4
+  battery_manufacturer_name: Bluetti
+  battery_manufacturer_model: AP300

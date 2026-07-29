@@ -15,7 +15,7 @@ npm run fmt:check        # oxfmt --check
 
 There is no build step. The plugin is loaded by the SignalK server from `index.js`.
 
-Tests live in `test/*.test.js` and cover the deterministic core — `lib/protocol.js`, `lib/csv-loader.js`, `lib/path-mapper.js`, `lib/encryption.js`, `lib/v2-encryption.js` — plus an end-to-end regression check against the real bundled `registers/*.csv` files. `lib/device.js` and `lib/scanner.js` are BLE-hardware integration glue and are excluded from the coverage target (`test:coverage`'s `--test-coverage-exclude`) rather than mocked.
+Tests live in `test/*.test.js` and cover the deterministic core — `lib/protocol.js`, `lib/register-loader.js`, `lib/path-mapper.js`, `lib/encryption.js`, `lib/v2-encryption.js` — plus an end-to-end regression check against the real bundled `registers/*.yaml` files. `lib/device.js` and `lib/scanner.js` are BLE-hardware integration glue and are excluded from the coverage target (`test:coverage`'s `--test-coverage-exclude`) rather than mocked.
 
 To exercise the plugin locally, install it into a running SignalK server:
 
@@ -25,7 +25,7 @@ cd ~/.signalk/node_modules && ln -s /path/to/signalk-bluetti-plugin @rhizomatics
 
 ## Architecture
 
-The plugin is a SignalK server plugin (CommonJS module exporting a factory function). `index.js` is the entry point; `lib/` contains the core logic split into five focused modules.
+The plugin is a SignalK server plugin (CommonJS module exporting a factory function). `index.js` is the entry point; `lib/` contains the core logic split into focused modules.
 
 ### Data flow
 
@@ -34,7 +34,7 @@ Scanner (BLE discovery)
   → index.js (matches discovered peripheral to configured devices)
     → BluettiDevice (BLE GATT connection + Modbus polling loop)
       → protocol.js (frame building, CRC16, XOR decryption, frame reassembly)
-        → csv-loader.js (decode typed register values from Map<addr, uint16>)
+        → register-loader.js (decode typed register values from Map<addr, uint16>)
           → path-mapper.js (convert units to SI, build SignalK delta)
             → app.handleMessage() (publishes to SignalK)
 ```
@@ -43,7 +43,7 @@ SignalK paths are in the `electrical` domain, defined at https://github.com/Sign
 
 ### Module responsibilities
 
-- **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes.
+- **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes. Also resolves each device's register map: bundled `registers/*.yaml` first checked against the configurable custom directory (`registersDir` option, defaulting to `<SignalK home>/bluetti` via `app.config.configPath`) so a user's own file of the same name takes precedence, then falling back to the plugin's bundled copy; `mkdir -p`'s the custom directory on start so it always exists to drop files into.
 
 - **`lib/scanner.js`** — Wraps `@naugehyde/node-ble` (BlueZ D-Bus). Calls `adapter.startDiscovery()` then polls `adapter.devices()` every second, emitting `discovered` (per Bluetti device found) and `scanComplete` (after timeout). Uses `device: <node-ble Device>` in the discovered payload (not `peripheral`).
 
@@ -51,13 +51,15 @@ SignalK paths are in the `electrical` domain, defined at https://github.com/Sign
 
 - **`lib/protocol.js`** — Modbus RTU over BLE: builds FC03 (read holding registers) requests, validates CRC16 on responses, handles frame reassembly across multiple BLE packets. `groupRegisters()` converts a flat list of register addresses into contiguous batches (max gap 10, max 50 registers/batch) to minimise round-trips.
 
-- **`lib/csv-loader.js`** — Parses register map CSVs with flexible column name aliases (supports both English and Chinese headers from Bluetti's own documentation). Decodes typed values (`uint16`, `int16`, `uint32`, `int32`, `float32`, `bool`) with `scale`/`offset` applied. A row with no `register_address` and a `constant_value` instead is a fixed, non-register fact about the device (e.g. nominal capacity, chemistry) — `decodeValue()` returns it as-is (numeric constants still go through the same unit conversion as register-backed fields; text constants don't).
+- **`lib/register-loader.js`** — Parses register map YAML files: a `fields:` map (field name → `{ register, type, count, scale, offset, unit, path }`) and a `constants:` map (field name → a bare scalar, or `{ value, unit, path }` for one needing unit conversion). Decodes typed values (`uint16`, `int16`, `uint32`, `int32`, `float32`, `bool`) with `scale`/`offset` applied. A constant's `decodeValue()` returns it as-is (numeric constants still go through the same unit conversion as register-backed fields; text constants don't).
 
-- **`lib/path-mapper.js`** — Converts decoded values to SignalK SI units (°C→K, Wh→J, %→0–1 ratio). Resolves SignalK paths for a field in priority order: the CSV's `signalk_path` column (override, only needed for a register the code doesn't recognise) → the `STANDARD_FIELD_PATHS` registry keyed by `field_name` (covers all the well-known Bluetti register names — this is what bundled CSVs rely on, so they only need to list `field_name` + register info) → a best-effort keyword guess (`autoPath()`) as a last resort. Also derives values Bluetti doesn't report directly, using a per-device cache (`opts.cache`, owned by the caller) to remember each field's last-known value across polls/batches: AC-input current from power÷voltage (unless a real current register exists), DC-output-port current from power÷a CSV-supplied fixed voltage, and remaining battery capacity from nominal capacity × state of charge. Produces a SignalK delta object for `app.handleMessage()`.
+- **`lib/path-mapper.js`** — Converts decoded values to SignalK SI units (°C→K, Wh→J, %→0–1 ratio). Resolves SignalK paths for a field in priority order: the YAML field's `path` key (override, only needed for a register the code doesn't recognise) → the `STANDARD_FIELD_PATHS` registry keyed by `field_name` (covers all the well-known Bluetti register names — this is what bundled register maps rely on, so they only need to list `field_name` + register info) → a best-effort keyword guess (`autoPath()`) as a last resort. Also derives values Bluetti doesn't report directly, using a per-device cache (`opts.cache`, owned by the caller) to remember each field's last-known value across polls/batches: AC-input current from power÷voltage (unless a real current register exists), DC-output-port current from power÷a register-map-supplied fixed voltage, and remaining battery capacity from nominal capacity × state of charge. Produces a SignalK delta object for `app.handleMessage()`.
 
 ### Register maps
 
-CSV files in `registers/` are bundled with the plugin. Each row describes either one Modbus holding register (address, data type, scale/offset, unit) or, if `register_address` is left blank, a fixed constant (`constant_value`) — e.g. a model's nominal capacity, chemistry, or manufacturer info. `field_name` should be one of the standard names `lib/path-mapper.js` recognises wherever possible, since the SignalK path is then resolved by the code; `signalk_path` is an override column for exposing a register the code doesn't know about. The `{name}` placeholder in an explicit `signalk_path` is substituted with the per-device name from config.
+YAML files in `registers/` are bundled with the plugin (see `docs/examples/model_definition.yaml` for an annotated template). Each entry under `fields:` describes one Modbus holding register (address, data type, scale/offset, unit); `constants:` holds fixed, non-register facts about the device (e.g. nominal capacity, chemistry, manufacturer info). `field_name` (the YAML key) should be one of the standard names `lib/path-mapper.js` recognises wherever possible, since the SignalK path is then resolved by the code; a field's `path` key is an override for exposing a register the code doesn't know about. The `{name}` placeholder in an explicit `path` is substituted with the per-device name from config.
+
+Users can also add their own YAML files — for a model this plugin doesn't bundle yet — to a configurable directory (index.js's `registersDir` option), which defaults to `<SignalK home>/bluetti` (e.g. `~/.signalk/bluetti`). Files there are checked before the bundled `registers/` dir, so a user's own file can override a built-in of the same name.
 
 ### Encryption
 
