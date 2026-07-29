@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Format loosely follows [
 
 ## [1.5.0]
 
-- Expanded Bluetti model support
+- Expanded Bluetti model support, over 20 now with register mappings
 - Configuration moved from CSV to YAML
 - Configurable directory to add YAML files for unsupported Bluetti models
 - CLI `models` command lists supported register maps with field/constant counts
