@@ -1,7 +1,7 @@
 "use strict";
 
 // End-to-end regression check against the actual bundled register maps in
-// registers/*.yaml — simulates a full poll cycle (registers arriving in
+// devices/*.yaml — simulates a full poll cycle (registers arriving in
 // separate batches, as device.js delivers them) and asserts the resulting
 // SignalK paths, catching register-map/path-mapper drift that synthetic unit
 // tests wouldn't (e.g. a model's field_name typo'd against the
@@ -15,13 +15,13 @@ const { loadRegisters } = require("../lib/register-loader");
 const { buildDelta } = require("../lib/path-mapper");
 const { groupRegisters } = require("../lib/protocol");
 
-const REGISTERS_DIR = path.join(__dirname, "..", "registers");
+const DEVICES_DIR = path.join(__dirname, "..", "devices");
 
 // Runs two full poll cycles (so cross-batch derived values have a chance to
 // see both of their inputs) against synthetic register values, and returns
 // the union of every path published, keyed to its final value.
 function simulatePoll(model, seed) {
-  const fields = loadRegisters(path.join(REGISTERS_DIR, `${model}.yaml`));
+  const fields = loadRegisters(path.join(DEVICES_DIR, `${model}.yaml`));
   const addrs = [...new Set(fields.flatMap((f) => Array.from({ length: f.count }, (_, i) => f.register + i)))];
   const batches = groupRegisters(addrs);
 
@@ -40,7 +40,7 @@ function simulatePoll(model, seed) {
   return { fields, values };
 }
 
-describe("registers/ac200p.yaml", () => {
+describe("devices/ac200p.yaml", () => {
   const seed = {
     100: 80,
     101: 530,
@@ -96,7 +96,7 @@ describe("registers/ac200p.yaml", () => {
   });
 });
 
-describe("registers/el100v2.yaml", () => {
+describe("devices/el100v2.yaml", () => {
   const seed = { 102: 90, 140: 120, 142: 1, 144: 1, 146: 300, 1314: 2300 };
   const { values } = simulatePoll("el100v2", seed);
 
@@ -129,13 +129,13 @@ describe("registers/el100v2.yaml", () => {
 // path) and register rows that overlap each other.
 describe("every bundled register map", () => {
   const models = fs
-    .readdirSync(REGISTERS_DIR)
+    .readdirSync(DEVICES_DIR)
     .filter((f) => f.endsWith(".yaml"))
     .map((f) => f.replace(/\.yaml$/, ""));
 
   for (const model of models) {
     test(`${model}.yaml loads and every register maps to a distinct, well-formed path`, () => {
-      const fields = loadRegisters(path.join(REGISTERS_DIR, `${model}.yaml`));
+      const fields = loadRegisters(path.join(DEVICES_DIR, `${model}.yaml`));
 
       // No two fields should claim the same register address.
       const claimed = new Map();

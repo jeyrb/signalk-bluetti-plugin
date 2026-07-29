@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 
 const PLUGIN_ID = "signalk-bluetti-plugin";
-const REGISTERS_DIR = path.join(__dirname, "registers");
+const DEVICES_DIR = path.join(__dirname, "devices");
 
 // Bluetti device BLE name prefixes (mirrors scanner.js).
 const BLUETTI_PREFIXES = ["BT-TH-", "BLUETTI", "AC", "EP", "EB", "EL", "PR", "AP"];
@@ -38,7 +38,7 @@ function yamlModelNames(dir) {
   }
 }
 
-// The directory a user can drop their own register map YAML files into,
+// The directory a user can drop their own device configuration YAML files into,
 // without needing to fork/publish the plugin — defaults to a `bluetti`
 // subdirectory of the SignalK home directory (e.g. ~/.signalk/bluetti).
 // `app.config.configPath` isn't part of the documented plugin API but is the
@@ -57,7 +57,7 @@ module.exports = function (app) {
   let waitingStatusTimer = null;
 
   const defaultUserDir = defaultUserRegistersDir(app);
-  const builtins = yamlModelNames(REGISTERS_DIR);
+  const builtins = yamlModelNames(DEVICES_DIR);
   // Models available for the dropdown at schema-render time — bundled plus
   // whatever's already sitting in the default user directory. If `registersDir`
   // is overridden away from the default, models unique to that directory won't
@@ -83,13 +83,13 @@ module.exports = function (app) {
       scanOnStart: {
         type: "boolean",
         title: "Scan for new devices on plugin start",
-        description: "Runs a 15-second BLE scan and logs discovered Bluetti devices. Useful for finding device addresses.",
+        description: "Runs a short BLE scan and logs discovered Bluetti devices. Useful for finding device addresses.",
         default: true,
       },
       registersDir: {
         type: "string",
-        title: "Custom register maps directory",
-        description: `Directory to scan for your own register map YAML files (e.g. for a model this plugin doesn't bundle yet), in addition to the ones built in. Leave blank to use the default: ${defaultUserDir || "<SignalK home>/bluetti"}.`,
+        title: "Custom Device Configuration Directory",
+        description: `Directory to scan for your own device configuration YAML files (e.g. for a model this plugin doesn't bundle yet), in addition to the ones built in. Leave blank to use the default: ${defaultUserDir || "<SignalK home>/bluetti"}.`,
         default: "",
       },
       devices: {
@@ -117,17 +117,11 @@ module.exports = function (app) {
             },
             builtinModel: {
               type: "string",
-              title: "Register map",
+              title: "Device Configuration",
               description:
-                'Select a register map for your device model — bundled with the plugin, or dropped into the custom register maps directory above — or "custom" to supply an explicit YAML file path below.',
-              enum: ["custom", ...allModels],
-              default: allModels.length > 0 ? allModels[0] : "custom",
-            },
-            registerMapPath: {
-              type: "string",
-              title: "Custom register map YAML path",
-              description: 'Absolute path to a register map YAML file. Only used when "custom" is selected above.',
-              default: "",
+                "Select a device configuration for your model — bundled with the plugin, or dropped into the custom device configuration directory above.",
+              enum: allModels,
+              default: allModels.length > 0 ? allModels[0] : "",
             },
             encryptionCsvPath: {
               type: "string",
@@ -154,7 +148,6 @@ module.exports = function (app) {
       items: {
         address: { "ui:placeholder": "aa:bb:cc:dd:ee:ff" },
         name: { "ui:placeholder": "house" },
-        registerMapPath: { "ui:placeholder": "e.g. /path/to/my-device-registers.yaml" },
         encryptionCsvPath: { "ui:placeholder": "e.g. /path/to/19e1646709e0421b755fa9dda74.csv" },
       },
     },
@@ -180,7 +173,7 @@ module.exports = function (app) {
       try {
         fs.mkdirSync(userRegistersDir, { recursive: true });
       } catch (err) {
-        log(`Could not create custom register maps directory "${userRegistersDir}": ${err.message}`);
+        log(`Could not create custom device configuration directory "${userRegistersDir}": ${err.message}`);
       }
     }
 
@@ -298,7 +291,7 @@ module.exports = function (app) {
   // Finds <model>.yaml (or .yml), checking the custom directory before the
   // bundled one so a user's own file can override a built-in of the same name.
   function findModelFile(model, userRegistersDir) {
-    const dirs = [userRegistersDir, REGISTERS_DIR].filter(Boolean);
+    const dirs = [userRegistersDir, DEVICES_DIR].filter(Boolean);
     for (const dir of dirs) {
       for (const ext of [".yaml", ".yml"]) {
         const p = path.join(dir, `${model}${ext}`);
@@ -309,15 +302,12 @@ module.exports = function (app) {
   }
 
   function resolveRegisterMapPath(cfg, userRegistersDir) {
-    const { builtinModel, registerMapPath } = cfg;
-    if (!builtinModel || builtinModel === "custom") {
-      if (!registerMapPath) throw new Error("No register map: select a model or provide a custom YAML path");
-      return registerMapPath;
-    }
+    const { builtinModel } = cfg;
+    if (!builtinModel) throw new Error("No device configuration: select a model");
     const found = findModelFile(builtinModel, userRegistersDir);
     if (!found)
       throw new Error(
-        `Register map "${builtinModel}" not found (checked ${userRegistersDir ? `${userRegistersDir} and ` : ""}${REGISTERS_DIR})`,
+        `Device configuration "${builtinModel}" not found (checked ${userRegistersDir ? `${userRegistersDir} and ` : ""}${DEVICES_DIR})`,
       );
     return found;
   }
@@ -339,7 +329,7 @@ module.exports = function (app) {
       fields = loadRegisters(registerPath);
       log(`[${name}] Loaded ${fields.length} registers from ${registerPath}`);
     } catch (err) {
-      app.setPluginError(`[${name}] Failed to load register map "${registerPath}": ${err.message}`);
+      app.setPluginError(`[${name}] Failed to load device configuration "${registerPath}": ${err.message}`);
       return;
     }
 

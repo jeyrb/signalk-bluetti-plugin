@@ -1,6 +1,6 @@
 {
   "name": "@rhizomatics/signalk-bluetti-plugin",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "SignalK plugin for Bluetti power station monitoring via Bluetooth LE. Comes with configuration for 20+ models.",
   "keywords": [
     "battery",
@@ -35,7 +35,7 @@
     "lib/",
     "docs/assets/",
     "docs/examples/",
-    "registers/",
+    "devices/",
     "README.md",
     "CHANGELOG.md"
   ],

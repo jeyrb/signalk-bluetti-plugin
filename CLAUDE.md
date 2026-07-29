@@ -15,7 +15,7 @@ npm run fmt:check        # oxfmt --check
 
 There is no build step. The plugin is loaded by the SignalK server from `index.js`.
 
-Tests live in `test/*.test.js` and cover the deterministic core — `lib/protocol.js`, `lib/register-loader.js`, `lib/path-mapper.js`, `lib/encryption.js`, `lib/v2-encryption.js` — plus an end-to-end regression check against the real bundled `registers/*.yaml` files. `lib/device.js` and `lib/scanner.js` are BLE-hardware integration glue and are excluded from the coverage target (`test:coverage`'s `--test-coverage-exclude`) rather than mocked.
+Tests live in `test/*.test.js` and cover the deterministic core — `lib/protocol.js`, `lib/register-loader.js`, `lib/path-mapper.js`, `lib/encryption.js`, `lib/v2-encryption.js` — plus an end-to-end regression check against the real bundled `devices/*.yaml` files. `lib/device.js` and `lib/scanner.js` are BLE-hardware integration glue and are excluded from the coverage target (`test:coverage`'s `--test-coverage-exclude`) rather than mocked.
 
 To exercise the plugin locally, install it into a running SignalK server:
 
@@ -43,7 +43,7 @@ SignalK paths are in the `electrical` domain, defined at https://github.com/Sign
 
 ### Module responsibilities
 
-- **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes. Also resolves each device's register map: bundled `registers/*.yaml` first checked against the configurable custom directory (`registersDir` option, defaulting to `<SignalK home>/bluetti` via `app.config.configPath`) so a user's own file of the same name takes precedence, then falling back to the plugin's bundled copy; `mkdir -p`'s the custom directory on start so it always exists to drop files into.
+- **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes. Also resolves each device's register map: bundled `devices/*.yaml` first checked against the configurable custom directory (`registersDir` option, defaulting to `<SignalK home>/bluetti` via `app.config.configPath`) so a user's own file of the same name takes precedence, then falling back to the plugin's bundled copy; `mkdir -p`'s the custom directory on start so it always exists to drop files into.
 
 - **`lib/scanner.js`** — Wraps `@naugehyde/node-ble` (BlueZ D-Bus). Calls `adapter.startDiscovery()` then polls `adapter.devices()` every second, emitting `discovered` (per Bluetti device found) and `scanComplete` (after timeout). Uses `device: <node-ble Device>` in the discovered payload (not `peripheral`).
 
@@ -57,9 +57,9 @@ SignalK paths are in the `electrical` domain, defined at https://github.com/Sign
 
 ### Register maps
 
-YAML files in `registers/` are bundled with the plugin (see `docs/examples/model_definition.yaml` for an annotated template). Each entry under `fields:` describes one Modbus holding register (address, data type, scale/offset, unit); `constants:` holds fixed, non-register facts about the device (e.g. nominal capacity, chemistry, manufacturer info). `field_name` (the YAML key) should be one of the standard names `lib/path-mapper.js` recognises wherever possible, since the SignalK path is then resolved by the code; a field's `path` key is an override for exposing a register the code doesn't know about. The `{name}` placeholder in an explicit `path` is substituted with the per-device name from config.
+YAML files in `devices/` are bundled with the plugin (see `docs/examples/model_definition.yaml` for an annotated template). Each entry under `fields:` describes one Modbus holding register (address, data type, scale/offset, unit); `constants:` holds fixed, non-register facts about the device (e.g. nominal capacity, chemistry, manufacturer info). `field_name` (the YAML key) should be one of the standard names `lib/path-mapper.js` recognises wherever possible, since the SignalK path is then resolved by the code; a field's `path` key is an override for exposing a register the code doesn't know about. The `{name}` placeholder in an explicit `path` is substituted with the per-device name from config.
 
-Users can also add their own YAML files — for a model this plugin doesn't bundle yet — to a configurable directory (index.js's `registersDir` option), which defaults to `<SignalK home>/bluetti` (e.g. `~/.signalk/bluetti`). Files there are checked before the bundled `registers/` dir, so a user's own file can override a built-in of the same name.
+Users can also add their own YAML files — for a model this plugin doesn't bundle yet — to a configurable directory (index.js's `registersDir` option), which defaults to `<SignalK home>/bluetti` (e.g. `~/.signalk/bluetti`). Files there are checked before the bundled `devices/` dir, so a user's own file can override a built-in of the same name.
 
 ### Encryption
 

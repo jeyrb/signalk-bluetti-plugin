@@ -5,11 +5,11 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const REGISTERS_DIR = path.join(__dirname, "registers");
+const DEVICES_DIR = path.join(__dirname, "devices");
 // Same default the plugin itself uses when running under a real SignalK
 // server (see index.js) — lets a user's custom register maps be found by the
 // CLI too, without needing to pass --registers-dir.
-const DEFAULT_USER_REGISTERS_DIR = path.join(os.homedir(), ".signalk", "bluetti");
+const DEFAULT_USER_DEVICES_DIR = path.join(os.homedir(), ".signalk", "bluetti");
 
 function listModels(dir) {
   try {
@@ -24,7 +24,7 @@ function listModels(dir) {
 }
 
 function listBuiltinModels() {
-  return [...new Set([...listModels(REGISTERS_DIR), ...listModels(DEFAULT_USER_REGISTERS_DIR)])].sort((a, b) => a.localeCompare(b));
+  return [...new Set([...listModels(DEVICES_DIR), ...listModels(DEFAULT_USER_DEVICES_DIR)])].sort((a, b) => a.localeCompare(b));
 }
 
 // One row per model, checking the custom directory before the bundled one so
@@ -35,8 +35,8 @@ function listModelDetails() {
 
   return listBuiltinModels().map((model) => {
     for (const [dir, source] of [
-      [DEFAULT_USER_REGISTERS_DIR, "custom"],
-      [REGISTERS_DIR, "built-in"],
+      [DEFAULT_USER_DEVICES_DIR, "custom"],
+      [DEVICES_DIR, "built-in"],
     ]) {
       for (const ext of [".yaml", ".yml"]) {
         const p = path.join(dir, `${model}${ext}`);
@@ -79,12 +79,12 @@ Commands:
                                 Bluetti device found.
     --registers <model|path>     Built-in model (${builtins.join(", ") || "none bundled"}) or a register map
                                   YAML path (required). Also checks
-                                  ${DEFAULT_USER_REGISTERS_DIR} for custom models.
+                                  ${DEFAULT_USER_DEVICES_DIR} for custom models.
     --encryption-key <path>      Path to the Bluetti-provided encryption CSV
                                   (only needed for legacy XOR-scrambled models)
     --timeout <seconds>          Discovery/scan timeout if not already known (default: 20)
 
-  models                       List supported register maps, with a field and
+  models                       List supported device configurations, with a field and
                                 constant count per model
 
   help                         Show this help
@@ -180,7 +180,7 @@ async function findDevice(adapter, mac, timeoutMs) {
 }
 
 function resolveRegistersArg(value) {
-  for (const dir of [DEFAULT_USER_REGISTERS_DIR, REGISTERS_DIR]) {
+  for (const dir of [DEFAULT_USER_DEVICES_DIR, DEVICES_DIR]) {
     for (const ext of [".yaml", ".yml"]) {
       const p = path.join(dir, `${value}${ext}`);
       if (fs.existsSync(p)) return p;
@@ -188,7 +188,7 @@ function resolveRegistersArg(value) {
   }
   if (fs.existsSync(value)) return value;
   const builtins = listBuiltinModels();
-  throw new Error(`Register map not found: "${value}" (not a built-in model [${builtins.join(", ")}] or an existing file path)`);
+  throw new Error(`Device configuration not found: "${value}" (not a built-in model [${builtins.join(", ")}] or an existing file path)`);
 }
 
 async function printDeviceSummary(bleDevice, mac) {
@@ -406,7 +406,7 @@ async function cmdInfo(args) {
 function cmdModels() {
   const rows = listModelDetails();
   if (rows.length === 0) {
-    console.log(`No register maps found (checked ${REGISTERS_DIR} and ${DEFAULT_USER_REGISTERS_DIR}).`);
+    console.log(`No device configurations found (checked ${DEVICES_DIR} and ${DEFAULT_USER_DEVICES_DIR}).`);
     return;
   }
   printTable(rows, ["model", "fields", "constants", "source"]);

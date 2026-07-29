@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.5.1]
+
+- Simplify the custom device configuration override
+- 'Register Map' is now 'Device Configuration'
+- Bundled register maps moved from `registers/` to `devices/`
+
 ## [1.5.0]
 
 - Expanded Bluetti model support, over 20 now with register mappings

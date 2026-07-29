@@ -73,7 +73,7 @@ node cli.js dump aa:bb:cc:dd:ee:ff --timeout 30   # discovery timeout if device 
 Connect to a device and decode its live register values the same way the plugin itself does — same GATT UUIDs, same encryption handshake (including the AES/ECDH handshake used by "V2"-protocol models like the EL100V2), same register parsing. Requires `--registers`. If `mac` is omitted, scans and connects to the first Bluetti-matching device found.
 
 ```bash
-# Decode live registers using a bundled register map (see registers/*.yaml for available models)
+# Decode live registers using a bundled device configuration (see devices/*.yaml for available models)
 node cli.js info aa:bb:cc:dd:ee:ff --registers ac200p
 node cli.js info --registers ac200p                # scan and use the first Bluetti device found
 
@@ -86,7 +86,7 @@ node cli.js info aa:bb:cc:dd:ee:ff --registers ac200p --timeout 30   # discovery
 
 ### `models`
 
-List every register map the CLI (and the plugin) can find — bundled ones plus anything dropped into the custom directory (`~/.signalk/bluetti` by default) — with a field and constant count per model. No device connection needed.
+List every device configuration the CLI (and the plugin) can find — bundled ones plus anything dropped into the custom directory (`~/.signalk/bluetti` by default) — with a field and constant count per model. No device connection needed.
 
 ```bash
 node cli.js models
@@ -140,9 +140,9 @@ This tells systemd to start `bluetoothd` first and wait for it before starting S
 
 ### My station isn't supported
 
-Additional products can be added using a YAML file mapping modbus registers and providing static values — see [`docs/examples/model_definition.yaml`](docs/examples/model_definition.yaml) in the repo for an annotated template, and `registers/*.yaml` for real examples.
+Additional products can be added using a YAML file mapping modbus registers and providing static values — see [`docs/examples/model_definition.yaml`](docs/examples/model_definition.yaml) in the repo for an annotated template, and `devices/*.yaml` for real examples.
 
-Drop your file into the plugin's **Custom register maps directory** (a plugin setting, defaulting to `~/.signalk/bluetti`) and it'll appear in the **Register map** dropdown for a device, named after the file (without `.yaml`). A file there takes priority over a bundled one of the same name, so it also doubles as a way to override a built-in map. If you'd rather not touch plugin settings, point a device's **Custom register map YAML path** at the file directly instead — either way works, use whichever is more convenient.
+Drop your file into the plugin's **Custom Device Configuration Directory** (a plugin setting, defaulting to `~/.signalk/bluetti`) and it'll appear in the **Device Configuration** dropdown for a device, named after the file (without `.yaml`). A file there takes priority over a bundled one of the same name, so it also doubles as a way to override a built-in map.
 
 Check one of these projects to see if some of the mapping work has been done:
 
