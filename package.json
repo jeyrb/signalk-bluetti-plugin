@@ -11,6 +11,7 @@
     "generator",
     "marine",
     "signalk",
+    "signalk-category-hardware",
     "signalk-node-plugin",
     "signalk-node-server-plugin",
     "solar"
@@ -63,6 +64,7 @@
   },
   "signalk": {
     "displayName": "Bluetti Monitoring",
+    "appIcon": "docs/assets/icon.svg",
     "recommends": [
       "@rhizomatics/signalk-einklabel-plugin"
     ],
