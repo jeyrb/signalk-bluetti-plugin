@@ -51,6 +51,12 @@ function defaultUserRegistersDir(app) {
 module.exports = function (app) {
   const log = (msg) => app.debug(msg);
 
+  // app.bleApi is only present on SignalK server >= 2.31.0, which added a
+  // server-managed BLE Manager API (GATT connections routed through the
+  // server, shared across plugins, with provider failover). Only offer the
+  // option to use it when it's actually there.
+  const bleApiAvailable = !!app.bleApi;
+
   let scanner = null;
   let activeDevices = [];
   let scanResultCache = [];
@@ -86,6 +92,17 @@ module.exports = function (app) {
         description: "Runs a short BLE scan and logs discovered Bluetti devices. Useful for finding device addresses.",
         default: true,
       },
+      ...(bleApiAvailable
+        ? {
+            useBleManagerApi: {
+              type: "boolean",
+              title: "Use the SignalK BLE Manager API",
+              description:
+                "Route all Bluetooth access through SignalK server's BLE Manager API (server >= 2.31.0) instead of connecting to BlueZ directly, so this plugin can share the BLE adapter with other BLE plugins. Requires the server's own Bluetooth settings (Server → Settings → Bluetooth) to have \"Local Bluetooth Adapter\" enabled, or a BLE gateway configured — otherwise the server has no provider and this plugin won't find any devices. Experimental — leave off unless you know you need it.",
+              default: false,
+            },
+          }
+        : {}),
       registersDir: {
         type: "string",
         title: "Custom Device Configuration Directory",
@@ -156,10 +173,12 @@ module.exports = function (app) {
   // ── Start ──────────────────────────────────────────────────────────────
 
   plugin.start = function (options) {
-    let Scanner, BluettiDevice, loadRegisters, buildDelta, readEncryptionKey;
+    let Scanner, BluettiDevice, BleManagerScanner, BleManagerDevice, loadRegisters, buildDelta, readEncryptionKey;
     try {
       Scanner = require("./lib/scanner");
       BluettiDevice = require("./lib/device");
+      BleManagerScanner = require("./lib/ble-manager-scanner");
+      BleManagerDevice = require("./lib/ble-manager-device");
       ({ loadRegisters } = require("./lib/register-loader"));
       ({ buildDelta } = require("./lib/path-mapper"));
       ({ readEncryptionKey } = require("./lib/encryption"));
@@ -167,6 +186,14 @@ module.exports = function (app) {
       app.setPluginError(`Dependency load failed: ${err.message}. Run: npm install inside the plugin directory.`);
       return;
     }
+
+    const useBleManager = bleApiAvailable && options.useBleManagerApi === true;
+    if (options.useBleManagerApi === true && !bleApiAvailable) {
+      log(
+        "useBleManagerApi is enabled but this SignalK server has no BLE Manager API (requires >= 2.31.0) — falling back to direct BlueZ access.",
+      );
+    }
+    log(useBleManager ? "Using the SignalK BLE Manager API for Bluetooth access." : "Using direct BlueZ access for Bluetooth.");
 
     const userRegistersDir = options.registersDir || defaultUserDir;
     if (userRegistersDir) {
@@ -177,7 +204,7 @@ module.exports = function (app) {
       }
     }
 
-    scanner = new Scanner(log);
+    scanner = useBleManager ? new BleManagerScanner(app, PLUGIN_ID, log) : new Scanner(log);
 
     const devices = (options.devices || []).filter((d) => d.enabled !== false);
 
@@ -213,7 +240,7 @@ module.exports = function (app) {
     // Build address → cfg lookup (normalise to lowercase, no colons)
     const normalise = (addr) => addr.toLowerCase().replace(/:/g, "");
     const pending = new Map(devices.map((cfg) => [normalise(cfg.address), cfg]));
-    const deps = { BluettiDevice, loadRegisters, buildDelta, readEncryptionKey, userRegistersDir };
+    const deps = { BluettiDevice, BleManagerDevice, useBleManager, loadRegisters, buildDelta, readEncryptionKey, userRegistersDir };
 
     scanner.on("discovered", ({ address, name, device: bleDevice }) => {
       scanResultCache.push({ address, name });
@@ -312,7 +339,12 @@ module.exports = function (app) {
     return found;
   }
 
-  function startDevice(cfg, bleDevice, bleName, { BluettiDevice, loadRegisters, buildDelta, readEncryptionKey, userRegistersDir }) {
+  function startDevice(
+    cfg,
+    bleDevice,
+    bleName,
+    { BluettiDevice, BleManagerDevice, useBleManager, loadRegisters, buildDelta, readEncryptionKey, userRegistersDir },
+  ) {
     const { address, name, encryptionCsvPath = "", pollIntervalSeconds = 10 } = cfg;
     const registerCache = new Map(); // last-known value per field_name, across polls — see buildDelta
 
@@ -353,15 +385,26 @@ module.exports = function (app) {
       }
     }
 
-    const device = new BluettiDevice({
-      address,
-      name,
-      device: bleDevice,
-      fields,
-      pollIntervalMs: pollIntervalSeconds * 1000,
-      xorKey,
-      log,
-    });
+    const device = useBleManager
+      ? new BleManagerDevice({
+          app,
+          pluginId: PLUGIN_ID,
+          address,
+          name,
+          fields,
+          pollIntervalMs: pollIntervalSeconds * 1000,
+          xorKey,
+          log,
+        })
+      : new BluettiDevice({
+          address,
+          name,
+          device: bleDevice,
+          fields,
+          pollIntervalMs: pollIntervalSeconds * 1000,
+          xorKey,
+          log,
+        });
 
     device.on("connected", () => {
       app.setPluginStatus(`Connected to ${name} [${address}]`);

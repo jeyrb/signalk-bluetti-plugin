@@ -1,6 +1,6 @@
 {
   "name": "@rhizomatics/signalk-bluetti-plugin",
-  "version": "1.5.1",
+  "version": "2.0.0",
   "description": "Bluetti power station monitoring via Bluetooth LE for SignalK. Comes with configuration for 20+ models.",
   "keywords": [
     "battery",
@@ -47,7 +47,7 @@
     "fmt:check": "oxfmt --check",
     "lint": "oxlint",
     "test": "node --test",
-    "test:coverage": "node --experimental-test-coverage --test-coverage-include=\"lib/**/*.js\" --test-coverage-exclude=\"lib/device.js\" --test-coverage-exclude=\"lib/scanner.js\" --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test"
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include=\"lib/**/*.js\" --test-coverage-exclude=\"lib/device.js\" --test-coverage-exclude=\"lib/scanner.js\" --test-coverage-exclude=\"lib/ble-manager-device.js\" --test-coverage-exclude=\"lib/ble-manager-scanner.js\" --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 --test"
   },
   "dependencies": {
     "@naugehyde/node-ble": "^1.13.5",

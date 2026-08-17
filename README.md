@@ -7,41 +7,64 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/rhizomatics/signalk-bluetti-plugin/blob/main/LICENSE)
 [![boat tech directory](https://boat-tech-directory.rhizomatics.org.uk/images/badge.svg)](https://boat-tech-directory.rhizomatics.org.uk)
 
-A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. Supports 20+ stations, extensible by configuration. Also offers a CLI for easier exploring and debugging.
+A SignalK plugin to display data from Bluetti power stations over a Bluetooth Low Energy (BLE) connection. Supports 20+ stations, extensible by configuration. Also offers a CLI for easier exploring and debugging, and optional support for the BLE Manager API introduced in SignalK Server 2.31.0.
 
 ![Example Data](docs/assets/screenshots/bluetti_data.png)
 
 ## Pre-requisites
 
-The requirements below are only to make SignalK work with Bluetooth Low Energy, which is good thing to have anyway, since vendors like Victron, Switchbot, Ruuvi and others have BLE enabled hardware that's useful to have on a boat. Ignore if BLE already being used. [Direct BLE support](https://github.com/SignalK/signalk-server/issues/2411) in SignalK is being planned in 2026 and this plugin will support that when it comes.
+The requirements below are only to make SignalK work with Bluetooth Low Energy, which is good thing to have anyway, since vendors like Victron, Switchbot, Ruuvi and others have BLE enabled hardware that's useful to have on a boat. Ignore if BLE already being used.
 
-1. A SignalK server, **running Linux**
+### SignalK BLE Manager
 
-- MacOS and Windows aren't supported by the [BLE interface layer](https://www.npmjs.com/package/@naugehyde/node-ble), however they can be used for template development and
-  debugging (everything except `scan` and `paint`)
+SignalK server 2.31.0 added a server-managed [BLE API](https://demo.signalk.org/documentation/Developing/REST_APIs/BLE_API.html) so multiple BLE plugins can share one adapter (or a remote gateway) through the server instead of each opening its own BlueZ session. 
 
-2. A Bluetooth adapter, that can handle BLE (Bluetooth Low Energy).
+This plugin supports this with the **Use the SignalK BLE Manager API** setting (off by default, and only shown once your server is on 2.31.0+). It also requires either a local bluetooth adapter, or a BLE gateway to be configured - switch on the server's own **Local Bluetooth Adapter** in **Server → Settings → Bluetooth** and monitor it in the **Data -> BLE Manager** page.
 
-- Bluetooth adapters for Linux can be tricky, TP-Link UB400 and Asus USB-BT500 are two well-known and available ones
-- Some Raspberry Pi models come with suitable Bluetooth built in
-- Don't worry about the very latest Bluetooth versions, 4.0 is minimum for BLE, 5.0 is nice
-- Home Assistant is massively more popular than SignalK, and often also run on Raspberry Pi and similar, so good source of advice
+#### SignalK server
 
-3. `bluez` package installed in Linux
+- **Linux** is required if using a Bluetooth adapter on the server
+- MacOS and Windows aren't supported by the [BLE interface layer](https://www.npmjs.com/package/@naugehyde/node-ble) or SignalK BLE API, however they can be used for template development and debugging (everything except `scan` and `paint`)
+- Linux isn't a requirement if a BLE Gateway is used, using [SensESP](https://github.com/dirkwa/SensESP)
 
-- No need to do this if you have a Raspberry Pi with recent Raspian version, since bluez comes built in.
-- If you're not running a Raspberry Pi, then ensure that the `dbus` package is installed
+#### Bluetooth Low Energy (BLE) Integration
 
-Once you have all of that, it may be worth also installing [signalk-victron-ble](https://github.com/stefanor/signalk-victron-ble), [signalk-ruuvitag-plugin](https://github.com/vokkim/signalk-ruuvitag-plugin) or [bt-sensors-plugin](https://github.com/naugehyde/bt-sensors-plugin-sk) to pull in data from other sensors and equipment.
+##### Local BLE adapter
 
-4. Bluetti Encryption Key
+  1. Choosing an adapter
 
-If using a later model that needs encryption, email [service@bluettipower.com](mailto:service@bluettipower.com) to raise a support query for key. Official API site is at see https://github.com/bluetti-official/bluetti-bluetooth-lib. Key will be in the form of a CSV file, which be stored in your SignalK server, for example in a home directory, and referenced in the Bluetti Monitoring plugin configuration.
+  - Bluetooth adapters for Linux can be tricky, TP-Link UB400 and Asus USB-BT500 are two well-known and available ones
+  - Some Raspberry Pi models come with suitable Bluetooth built in
+  - Don't worry about the very latest Bluetooth versions, 4.0 is minimum for BLE, 5.0 is nice
+  - Home Assistant is massively more popular than SignalK, and often also run on Raspberry Pi and similar, so good source of advice
+
+  2. `bluez` and `dbus` packages installed
+
+  - No need to do this if you have a Raspberry Pi with recent Raspian version, since `bluez` comes built in.
+  - If you're not running a Raspberry Pi, then ensure that the `dbus` package is installed
+
+  3. Choose BLE API or self-managed BLE integration
+
+  - SignalK BLE via **Server → Settings → Bluetooth** and **Data -> BLE Manager**
+  - Or built-in BLE integration by switching off **Use the SignalK BLE Manager API** in the settings 
+
+##### BLE Gateway
+
+Buy or build a gateway using [SensESP](https://github.com/dirkwa/SensESP). Ensure the BLE API usage is switched on, in the plugin and the Server Settings.
+
+#### Bluetti Encryption Key
+
+If using a later model that needs encryption, email [service@bluettipower.com](mailto:service@bluettipower.com) to raise a support query for key. Official API site is at see https://github.com/bluetti-official/bluetti-bluetooth-lib. 
+
+Key will be in the form of a CSV file, which be stored in your SignalK server, for example in a home directory, and referenced in the Bluetti Monitoring plugin configuration.
+
+### Other uses for BLE
+
+Once you have all of that, it may be worth also installing plugins like [signalk-victron-ble](https://github.com/stefanor/signalk-victron-ble), [signalk-ruuvitag-plugin](https://github.com/vokkim/signalk-ruuvitag-plugin) or [bt-sensors-plugin](https://github.com/naugehyde/bt-sensors-plugin-sk) to pull in data from other sensors and equipment.
 
 ## Installation
 
-Look for **Bluetti Monitoring** in the **SignalK AppStore** on your
-server ( under _Apps & Plugins_ on the latest version).
+Look for **Bluetti Monitoring** in the **SignalK AppStore** on your server ( under _Apps & Plugins_ on the latest version).
 
 ## CLI
 

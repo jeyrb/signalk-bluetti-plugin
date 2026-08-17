@@ -15,7 +15,7 @@ npm run fmt:check        # oxfmt --check
 
 There is no build step. The plugin is loaded by the SignalK server from `index.js`.
 
-Tests live in `test/*.test.js` and cover the deterministic core — `lib/protocol.js`, `lib/register-loader.js`, `lib/path-mapper.js`, `lib/encryption.js`, `lib/v2-encryption.js` — plus an end-to-end regression check against the real bundled `devices/*.yaml` files. `lib/device.js` and `lib/scanner.js` are BLE-hardware integration glue and are excluded from the coverage target (`test:coverage`'s `--test-coverage-exclude`) rather than mocked.
+Tests live in `test/*.test.js` and cover the deterministic core — `lib/protocol.js`, `lib/register-loader.js`, `lib/path-mapper.js`, `lib/encryption.js`, `lib/v2-encryption.js` — plus an end-to-end regression check against the real bundled `devices/*.yaml` files. `lib/device.js`, `lib/scanner.js`, `lib/ble-manager-device.js`, and `lib/ble-manager-scanner.js` are BLE-hardware integration glue and are excluded from the coverage target (`test:coverage`'s `--test-coverage-exclude`) rather than mocked. `lib/protocol-session.js` — the Modbus/V2-handshake state machine shared by both transports — is transport-agnostic and deterministic like the other core modules but currently has no dedicated tests of its own (inherited from when this logic lived inline in `lib/device.js`, itself untested for the same "BLE glue" reason); it's exercised indirectly by both device modules.
 
 To exercise the plugin locally, install it into a running SignalK server:
 
@@ -30,24 +30,29 @@ The plugin is a SignalK server plugin (CommonJS module exporting a factory funct
 ### Data flow
 
 ```
-Scanner (BLE discovery)
+Scanner (BLE discovery)                      — or BleManagerScanner, see below
   → index.js (matches discovered peripheral to configured devices)
-    → BluettiDevice (BLE GATT connection + Modbus polling loop)
-      → protocol.js (frame building, CRC16, XOR decryption, frame reassembly)
-        → register-loader.js (decode typed register values from Map<addr, uint16>)
-          → path-mapper.js (convert units to SI, build SignalK delta)
-            → app.handleMessage() (publishes to SignalK)
+    → BluettiDevice (BLE GATT connection)     — or BleManagerDevice
+      → protocol-session.js (Modbus polling loop, V2 handshake state machine)
+        → protocol.js (frame building, CRC16, XOR decryption, frame reassembly)
+          → register-loader.js (decode typed register values from Map<addr, uint16>)
+            → path-mapper.js (convert units to SI, build SignalK delta)
+              → app.handleMessage() (publishes to SignalK)
 ```
 
 SignalK paths are in the `electrical` domain, defined at https://github.com/SignalK/signalk-server/blob/26ab1992be465081590c06d4a039b2fa3082825e/packages/path-metadata/src/electrical.ts
 
 ### Module responsibilities
 
-- **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes. Also resolves each device's register map: bundled `devices/*.yaml` first checked against the configurable custom directory (`registersDir` option, defaulting to `<SignalK home>/bluetti` via `app.config.configPath`) so a user's own file of the same name takes precedence, then falling back to the plugin's bundled copy; `mkdir -p`'s the custom directory on start so it always exists to drop files into.
+- **`index.js`** — Plugin lifecycle (`start`/`stop`), config schema, device orchestration. Lazy-requires all `lib/` modules inside `start()` so dependency load failures surface as plugin errors rather than crashes. Also resolves each device's register map: bundled `devices/*.yaml` first checked against the configurable custom directory (`registersDir` option, defaulting to `<SignalK home>/bluetti` via `app.config.configPath`) so a user's own file of the same name takes precedence, then falling back to the plugin's bundled copy; `mkdir -p`'s the custom directory on start so it always exists to drop files into. Picks between the two transports (node-ble vs BLE Manager API, see below) once at `start()` based on the `useBleManagerApi` option and whether `app.bleApi` exists, and passes the corresponding Scanner/Device pair down to `startDevice()`.
 
 - **`lib/scanner.js`** — Wraps `@naugehyde/node-ble` (BlueZ D-Bus). Calls `adapter.startDiscovery()` then polls `adapter.devices()` every second, emitting `discovered` (per Bluetti device found) and `scanComplete` (after timeout). Uses `device: <node-ble Device>` in the discovered payload (not `peripheral`).
 
-- **`lib/device.js`** — Manages the BLE GATT connection for one device via the `node-ble` Device object (D-Bus backed, persists across disconnects — no rescan needed on reconnect). On connect, calls `device.gatt()` → `getPrimaryService()` → `getCharacteristic()` → `startNotifications()`, then starts a polling loop. Each poll sends all register batches sequentially — the next request is sent only after the previous response is received. Reconnects with exponential backoff by calling `device.connect()` again on the same object. After subscribing, waits up to `HANDSHAKE_DETECT_MS` for a spontaneous V2 handshake CHALLENGE (see Encryption below) before assuming the plain/XOR protocol and starting to poll.
+- **`lib/device.js`** — Manages the BLE GATT connection for one device via the `node-ble` Device object (D-Bus backed, persists across disconnects — no rescan needed on reconnect). On connect, calls `device.gatt()` → `getPrimaryService()` → `getCharacteristic()` → `startNotifications()`, then hands the connection off to a `ProtocolSession` (see `lib/protocol-session.js`). Reconnects with exponential backoff by calling `device.connect()` again on the same object.
+
+- **`lib/protocol-session.js`** — Transport-agnostic Modbus/V2-handshake state machine, shared by `lib/device.js` and `lib/ble-manager-device.js`. Given a `sendFrame` callback for writing bytes out, it drives register-batch polling (each poll sends batches sequentially — the next request only after the previous response is received) and emits `registers` on a successfully decoded batch. After the transport calls `start()` (i.e. once subscribed to notifications), waits up to `HANDSHAKE_DETECT_MS` for a spontaneous V2 handshake CHALLENGE (see Encryption below) before assuming the plain/XOR protocol and starting to poll; the transport feeds it incoming notification bytes via `feed()`.
+
+- **`lib/ble-manager-scanner.js`** / **`lib/ble-manager-device.js`** — Equivalents of `lib/scanner.js`/`lib/device.js` built on the SignalK server's BLE Manager API (`app.bleApi`, server >= 2.31.0) instead of talking to BlueZ directly, so the plugin can share the BLE adapter with other BLE plugins through the server. Only used when the `useBleManagerApi` option is enabled (which is itself only offered in the config schema when `app.bleApi` is present — see `index.js`); defaults to off. `ble-manager-scanner.js` discovers devices via `app.bleApi.onAdvertisement()`/`getDevices()`. `ble-manager-device.js` uses `app.bleApi.connectGATT()` — the API's raw/dynamic GATT escape hatch — rather than the declarative `subscribeGATT()`, because Bluetti's Modbus-over-BLE protocol is a request/response RPC (each batch waits on the previous reply) rather than `subscribeGATT`'s fixed-interval notify/poll/periodic-write pattern. Both feed a `ProtocolSession` exactly like `lib/device.js` does.
 
 - **`lib/protocol.js`** — Modbus RTU over BLE: builds FC03 (read holding registers) requests, validates CRC16 on responses, handles frame reassembly across multiple BLE packets. `groupRegisters()` converts a flat list of register addresses into contiguous batches (max gap 10, max 50 registers/batch) to minimise round-trips.
 
@@ -63,8 +68,15 @@ Users can also add their own YAML files — for a model this plugin doesn't bund
 
 ### Encryption
 
-Two unrelated schemes exist across Bluetti's device generations, both handled by `lib/device.js`:
+Two unrelated schemes exist across Bluetti's device generations, both handled by `lib/protocol-session.js` (so identically for either transport):
 
 - **Legacy XOR** — some models scramble BLE frames with a simple per-device XOR key. The key comes from a 4-line CSV Bluetti provides per device (line 4 is the hex key string). The plugin auto-detects this file in `$HOME` by matching the BLE device name, or the user can configure the path explicitly. `lib/encryption.js` reads the key; `applyXor()` in `protocol.js` applies it symmetrically to both outgoing requests and incoming responses.
 
-- **V2 protocol** (EL100V2, EL30V2, PR100V2, PR30V2, ...) — these reject plaintext/XOR frames outright and require a real handshake: an ECDSA-signed ephemeral ECDH key exchange (secp256r1) bootstrapped by an AES-128-CBC "unsecure" key derived from a device-sent challenge, followed by AES-256-CBC for the session. Unlike the legacy scheme, this needs no per-device secret — it uses fixed constants common to all V2 devices. `lib/v2-encryption.js` implements the wire protocol and crypto (Node's built-in `crypto`, no new deps); `lib/device.js` detects it at runtime by waiting briefly after subscribing for a spontaneous handshake CHALLENGE, falling back to the legacy/plain path if none arrives. Ported from the wire format documented by `Patrick762/bluetti-bt-lib`, itself based on `nhurman/bluetti_mqtt` — validated against a real EL100V2's captured CHALLENGE frame before use.
+- **V2 protocol** (EL100V2, EL30V2, PR100V2, PR30V2, ...) — these reject plaintext/XOR frames outright and require a real handshake: an ECDSA-signed ephemeral ECDH key exchange (secp256r1) bootstrapped by an AES-128-CBC "unsecure" key derived from a device-sent challenge, followed by AES-256-CBC for the session. Unlike the legacy scheme, this needs no per-device secret — it uses fixed constants common to all V2 devices. `lib/v2-encryption.js` implements the wire protocol and crypto (Node's built-in `crypto`, no new deps); `lib/protocol-session.js` detects it at runtime by waiting briefly after the transport subscribes for a spontaneous handshake CHALLENGE, falling back to the legacy/plain path if none arrives. Ported from the wire format documented by `Patrick762/bluetti-bt-lib`, itself based on `nhurman/bluetti_mqtt` — validated against a real EL100V2's captured CHALLENGE frame before use.
+
+### BLE transports
+
+The plugin can reach BLE hardware two ways, chosen once at `start()`:
+
+- **Direct BlueZ** (default) — `lib/scanner.js` + `lib/device.js`, talking to `@naugehyde/node-ble` directly. Works today on any supported SignalK server version.
+- **SignalK BLE Manager API** (opt-in, `useBleManagerApi` option) — `lib/ble-manager-scanner.js` + `lib/ble-manager-device.js`, routing all Bluetooth access through the server's `app.bleApi` (added in SignalK server 2.31.0: `signalk-server/dist/api/ble/`, types in `@signalk/server-api`'s `bleapi.d.ts`; consumer-plugin pattern documented at `Developing/Plugins/BLE_Provider_&_Consumer_Plugins` in the server docs). Lets multiple BLE plugins share one adapter/gateway through the server instead of each opening its own BlueZ session. The config schema only offers this option when `app.bleApi` is present (i.e. server >= 2.31.0); it defaults to off since it's a newer, less-exercised path.
