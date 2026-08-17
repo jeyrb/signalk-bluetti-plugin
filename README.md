@@ -47,6 +47,7 @@ This plugin supports this with the **Use the SignalK BLE Manager API** setting (
 
 - SignalK BLE via **Server → Settings → Bluetooth** and **Data -> BLE Manager**
 - Or built-in BLE integration by switching off **Use the SignalK BLE Manager API** in the settings
+- The BLE Manager (as of v2.31.0) has a limited and unconfigurable 15 second scan period, which may not be sufficient for some devices. Fall back to the internal BLE integration if so, which can be configured to wait as long as you want in a scan.
 
 ##### BLE Gateway
 

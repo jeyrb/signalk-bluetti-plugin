@@ -2,6 +2,10 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.0.1]
+
+- When using BLE Manager, repeat scans if no device found initially
+
 ## [2.0.0]
 
 - Optional support for SignalK server's new BLE Manager API

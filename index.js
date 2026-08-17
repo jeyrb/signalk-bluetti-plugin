@@ -61,6 +61,14 @@ module.exports = function (app) {
   let activeDevices = [];
   let scanResultCache = [];
   let waitingStatusTimer = null;
+  let discoveryRestTimer = null;
+
+  // Discovery-only mode (no devices configured yet) cycles scan/rest rather
+  // than scanning once and going quiet forever, or scanning nonstop — a
+  // rest period lets a shared BlueZ discovery session breathe and avoids
+  // pinning the plugin as an always-on BLE Manager API consumer.
+  const DISCOVERY_SCAN_MS = 15000;
+  const DISCOVERY_REST_MS = 45000;
 
   const defaultUserDir = defaultUserRegistersDir(app);
   const builtins = yamlModelNames(DEVICES_DIR);
@@ -209,17 +217,25 @@ module.exports = function (app) {
     const devices = (options.devices || []).filter((d) => d.enabled !== false);
 
     if (devices.length === 0) {
-      // Discovery-only mode: log anything Bluetti-shaped that appears
+      // Discovery-only mode: log anything Bluetti-shaped that appears, then
+      // rest and scan again — keeps the plugin periodically visible on the
+      // BLE Manager admin page instead of scanning once and going quiet.
       scanner.on("discovered", ({ address, name }) => {
-        scanResultCache.push({ address, name });
+        if (!scanResultCache.some((d) => d.address === address)) {
+          scanResultCache.push({ address, name });
+        }
         app.setPluginStatus(`Discovered: ${name} [${address}] — copy address into plugin config`);
       });
       scanner.on("scanComplete", (found) => {
-        if (found.length === 0) app.setPluginStatus("Scan complete — no Bluetti devices found nearby.");
+        if (found.length === 0) app.setPluginStatus("Scan complete — no Bluetti devices found nearby. Resuming shortly …");
+        discoveryRestTimer = setTimeout(() => {
+          discoveryRestTimer = null;
+          void scanner.startScan(DISCOVERY_SCAN_MS);
+        }, DISCOVERY_REST_MS);
       });
       if (options.scanOnStart !== false) {
         app.setPluginStatus("No devices configured — scanning for Bluetti devices …");
-        void scanner.startScan(15000);
+        void scanner.startScan(DISCOVERY_SCAN_MS);
       } else {
         app.setPluginStatus("No devices configured. Add a device in plugin settings.");
       }
@@ -427,6 +443,10 @@ module.exports = function (app) {
     if (waitingStatusTimer) {
       clearInterval(waitingStatusTimer);
       waitingStatusTimer = null;
+    }
+    if (discoveryRestTimer) {
+      clearTimeout(discoveryRestTimer);
+      discoveryRestTimer = null;
     }
     if (scanner) {
       scanner.stopAll();
