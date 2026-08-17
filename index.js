@@ -98,7 +98,7 @@ module.exports = function (app) {
               type: "boolean",
               title: "Use the SignalK BLE Manager API",
               description:
-                "Route all Bluetooth access through SignalK server's BLE Manager API (server >= 2.31.0) instead of connecting to BlueZ directly, so this plugin can share the BLE adapter with other BLE plugins. Requires the server's own Bluetooth settings (Server → Settings → Bluetooth) to have \"Local Bluetooth Adapter\" enabled, or a BLE gateway configured — otherwise the server has no provider and this plugin won't find any devices. Experimental — leave off unless you know you need it.",
+                "Route all Bluetooth access through SignalK server's BLE Manager API (server >= 2.31.0) instead of connecting to BlueZ directly, so this plugin can share the BLE adapter with other BLE plugins. Requires the server to have a Bluetooth local adapter or BLE gateway available (Server → Settings → Bluetooth).",
               default: false,
             },
           }
