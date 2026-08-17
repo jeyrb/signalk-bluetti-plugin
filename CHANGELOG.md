@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Format loosely follows [
 
 ## [2.0.0]
 
-- Optional support for SignalK server's new BLE Manager API 
+- Optional support for SignalK server's new BLE Manager API
   - Requires SignalK Server version >= 2.31.0)
   - Config has a **Use the SignalK BLE Manager API** setting, only shown when the server supports it, off by default.
   - Lets this plugin share the BLE adapter with other BLE plugins through the server instead of opening its own BlueZ session.

@@ -17,7 +17,7 @@ The requirements below are only to make SignalK work with Bluetooth Low Energy, 
 
 ### SignalK BLE Manager
 
-SignalK server 2.31.0 added a server-managed [BLE API](https://demo.signalk.org/documentation/Developing/REST_APIs/BLE_API.html) so multiple BLE plugins can share one adapter (or a remote gateway) through the server instead of each opening its own BlueZ session. 
+SignalK server 2.31.0 added a server-managed [BLE API](https://demo.signalk.org/documentation/Developing/REST_APIs/BLE_API.html) so multiple BLE plugins can share one adapter (or a remote gateway) through the server instead of each opening its own BlueZ session.
 
 This plugin supports this with the **Use the SignalK BLE Manager API** setting (off by default, and only shown once your server is on 2.31.0+). It also requires either a local bluetooth adapter, or a BLE gateway to be configured - switch on the server's own **Local Bluetooth Adapter** in **Server → Settings → Bluetooth** and monitor it in the **Data -> BLE Manager** page.
 
@@ -31,22 +31,22 @@ This plugin supports this with the **Use the SignalK BLE Manager API** setting (
 
 ##### Local BLE adapter
 
-  1. Choosing an adapter
+1. Choosing an adapter
 
-  - Bluetooth adapters for Linux can be tricky, TP-Link UB400 and Asus USB-BT500 are two well-known and available ones
-  - Some Raspberry Pi models come with suitable Bluetooth built in
-  - Don't worry about the very latest Bluetooth versions, 4.0 is minimum for BLE, 5.0 is nice
-  - Home Assistant is massively more popular than SignalK, and often also run on Raspberry Pi and similar, so good source of advice
+- Bluetooth adapters for Linux can be tricky, TP-Link UB400 and Asus USB-BT500 are two well-known and available ones
+- Some Raspberry Pi models come with suitable Bluetooth built in
+- Don't worry about the very latest Bluetooth versions, 4.0 is minimum for BLE, 5.0 is nice
+- Home Assistant is massively more popular than SignalK, and often also run on Raspberry Pi and similar, so good source of advice
 
-  2. `bluez` and `dbus` packages installed
+2. `bluez` and `dbus` packages installed
 
-  - No need to do this if you have a Raspberry Pi with recent Raspian version, since `bluez` comes built in.
-  - If you're not running a Raspberry Pi, then ensure that the `dbus` package is installed
+- No need to do this if you have a Raspberry Pi with recent Raspian version, since `bluez` comes built in.
+- If you're not running a Raspberry Pi, then ensure that the `dbus` package is installed
 
-  3. Choose BLE API or self-managed BLE integration
+3. Choose BLE API or self-managed BLE integration
 
-  - SignalK BLE via **Server → Settings → Bluetooth** and **Data -> BLE Manager**
-  - Or built-in BLE integration by switching off **Use the SignalK BLE Manager API** in the settings 
+- SignalK BLE via **Server → Settings → Bluetooth** and **Data -> BLE Manager**
+- Or built-in BLE integration by switching off **Use the SignalK BLE Manager API** in the settings
 
 ##### BLE Gateway
 
@@ -54,7 +54,7 @@ Buy or build a gateway using [SensESP](https://github.com/dirkwa/SensESP). Ensur
 
 #### Bluetti Encryption Key
 
-If using a later model that needs encryption, email [service@bluettipower.com](mailto:service@bluettipower.com) to raise a support query for key. Official API site is at see https://github.com/bluetti-official/bluetti-bluetooth-lib. 
+If using a later model that needs encryption, email [service@bluettipower.com](mailto:service@bluettipower.com) to raise a support query for key. Official API site is at see https://github.com/bluetti-official/bluetti-bluetooth-lib.
 
 Key will be in the form of a CSV file, which be stored in your SignalK server, for example in a home directory, and referenced in the Bluetti Monitoring plugin configuration.
 
